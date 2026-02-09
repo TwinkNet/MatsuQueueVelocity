@@ -1,0 +1,46 @@
+queue-server:
+  velocity-name: queue
+  display-name: Queue
+destination-server:
+  velocity-name: main
+  display-name: 2b2t
+root-permission: "matsu.queue"
+reconnect-cooldown: 10
+
+status:
+  now-queued: "§6{server} is full"
+  now-offline: "§6{server} is §coffline"
+  pos-in-queue: "§6Position in queue: §l{pos}"
+  connecting: "§6Connecting to {server}..."
+  pending-connection: "§6Pending connection to {server}..."
+
+slots:
+  standard:
+    capacity: 150
+  priority:
+    capacity: 50
+  operator:
+    capacity: 10
+
+queues:
+  default:
+    priority: 0
+    tab-header: "\\n§42builders§32tools\\n\\n§6{server} is full\\n§6{status}\\n"
+    tab-footer: "\\n§6This account does not have priority queue status\\n"
+    slots: # Sorted by priority
+      - "standard"
+  priority:
+    priority: 1
+    tab-header: "\\n§42builders§32tools\\n\\n§6{server} is full\\n§6{status}\\n"
+    tab-footer: "\\n§6This account has priority queue status and will be placed in a faster queue\\n"
+    slots: # Sorted by priority
+      - "priority"
+      - "standard"
+  operator:
+    priority: 2
+    tab-header: "\\n§42builders§32tools\\n\\n§6{server} is full\\n§6{status}\\n"
+    tab-footer: "\\n§6This account has operator status and will be placed in the fastest queue\\n"
+    slots: # Sorted by priority
+      - "standard"
+      - "priority"
+      - "operator"
