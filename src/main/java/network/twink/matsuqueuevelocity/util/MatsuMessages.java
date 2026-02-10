@@ -50,6 +50,10 @@ public class MatsuMessages {
     }
 
     private String format(String template, String serverName, int pos) {
-        return template.replace("{server}", serverName).replace("{pos}", pos+"");
+        return template.replace("{server}", serverName).replace("{pos}", pos > 0 ? pos+"" : "...");
+    }
+
+    public String formatTabListMessage(String template, String statusReplacement, int pos) {
+        return template.replace("{status}", statusReplacement).replace("{pos}", pos > 0 ? pos+"" : "...");
     }
 }

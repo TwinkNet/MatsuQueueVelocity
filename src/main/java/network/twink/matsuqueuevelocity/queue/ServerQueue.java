@@ -12,8 +12,8 @@ import java.util.concurrent.LinkedBlockingDeque;
 
 public class ServerQueue {
 
-    private String name;
-    private int priority;
+    private final String name;
+    private final int priority;
     private final String[] prioritisedSlots;
 
     private final LinkedBlockingDeque<QueuePlayer> queue = new  LinkedBlockingDeque<>();
@@ -67,11 +67,39 @@ public class ServerQueue {
         for (QueuePlayer queuePlayer : queue) {
             Optional<Player> optional = plugin.getProxyServer().getPlayer(queuePlayer.getUuid());
             if (optional.isEmpty()) {
+                // Super epic rare console message that should never appear but who the fuck knows because muh multithreaded proxy server
                 plugin.getLogger().error("Player {} is not online, but they're still queued anyways. This message should only appear once, they'll be dequeued and sent to purgatory within 500ms", queuePlayer.getUuid());
                 continue;
             }
             Player player = optional.get();
             player.sendMessage(LegacyComponentSerializer.legacySection().deserialize(plugin.getConfigurator().getMatsuMessages().getPositionInQueue(plugin.getDestinationMatsuServer().getDisplayName(), count)));
+            queuePlayer.setLastKnownPosInQueue(count);
+            boolean flag = !plugin.isDestinationServerOnline(); // if the server IS NOT online
+            String header = plugin
+                    .getConfigurator()
+                    .getMatsuMessages()
+                    .formatTabListMessage(
+                            plugin.getTabHeaderTemplateForPlayer(player),
+                            !flag ?  // If the server IS online
+                                    plugin.getConfigurator().getMatsuMessages().getNowQueued(plugin.getDestinationMatsuServer().getDisplayName())
+                                    :
+                                    plugin.getConfigurator().getMatsuMessages().getNowOffline(plugin.getDestinationMatsuServer().getDisplayName())
+                            ,
+                            queuePlayer.getCachedPositionInQueue()
+                    );
+            String footer = plugin
+                    .getConfigurator()
+                    .getMatsuMessages()
+                    .formatTabListMessage(
+                            plugin.getTabFooterTemplateForPlayer(player),
+                            !flag ? // If the server IS online
+                                    plugin.getConfigurator().getMatsuMessages().getNowQueued(plugin.getDestinationMatsuServer().getDisplayName())
+                                    :
+                                    plugin.getConfigurator().getMatsuMessages().getNowOffline(plugin.getDestinationMatsuServer().getDisplayName())
+                            ,
+                            queuePlayer.getCachedPositionInQueue()
+                    );
+            player.sendPlayerListHeaderAndFooter(LegacyComponentSerializer.legacySection().deserialize(header), LegacyComponentSerializer.legacySection().deserialize(footer));
             count++;
         }
     }
@@ -84,6 +112,7 @@ public class ServerQueue {
     }
 
     public boolean enqueue(QueuePlayer queuePlayer) {
+        queuePlayer.setLastKnownPosInQueue(queue.size() + 1); // this is important for the player tab list to work immediately
         return queue.offer(queuePlayer);
     }
 
@@ -91,6 +120,7 @@ public class ServerQueue {
         for (QueuePlayer queuePlayer : queue) {
             if (queuePlayer.getUuid().equals(uid)) {
                 if (queue.remove(queuePlayer)) {
+                    queuePlayer.setLastKnownPosInQueue(-1);
                     return queuePlayer;
                 }
             }
@@ -98,6 +128,24 @@ public class ServerQueue {
         return null;
     }
 
+    /**
+     * Attempts to connect the first player in queue to the destination server.
+     *
+     * If the destination server is offline, the queue is empty, or if the server is considered full to players in this queue, it will return false
+     * The method will pop the QueuePlayer and attempt to find the Player within the proxy server,
+     * if the Player is not found (ex. they left the server and didn't get cleaned up),
+     * the method will call itself to process the next player in queue.
+     *
+     * If all is well, the player will be sent to the destination server.
+     * If the player joins the destination server and successfully occupies a player slot,
+     * their state will be set to PLAYING.
+     *
+     * If anything failed, they will be kicked from the server.
+     *
+     * @param plugin The MatsuQueuePlugin
+     * @return whether this was successful past the point of getting the Player object,
+     * this will return true even if the player was kicked for other reasons.
+     */
     public boolean connectFirstIfPossible(MatsuQueuePlugin plugin) {
         if (!plugin.isDestinationServerOnline() || queue.isEmpty() || isServerFull(plugin)) return false;
         QueuePlayer queuePlayer = queue.pop();
@@ -105,18 +153,20 @@ public class ServerQueue {
         if (optional.isEmpty()) return connectFirstIfPossible(plugin);
         Player player = optional.get();
         if (player.getCurrentServer().isEmpty()) return connectFirstIfPossible(plugin);
-        this.joinSlotPool(plugin, queuePlayer);
+        final boolean flag = joinSlotPool(plugin, queuePlayer);
         MatsuMessages matsuMessages =  plugin.getConfigurator().getMatsuMessages();
         player.sendMessage(LegacyComponentSerializer.legacySection().deserialize(matsuMessages.getConnecting(plugin.getDestinationMatsuServer().getDisplayName())));
         player.createConnectionRequest(plugin.getDestinationServer()).connect().thenAccept(result -> {
-            if (result.isSuccessful()) queuePlayer.setQueueState(State.PLAYING);
+            if (result.isSuccessful() && flag) {
+                queuePlayer.setQueueState(State.PLAYING);
+            }
             else {
-                plugin.getLogger().error("{} could not be added to a server slot.", player.getGameProfile().getName());
+                plugin.getLogger().error("{} could not be connected to the destination server, or couldn't be added to a player slot.", player.getGameProfile().getName());
                 player.disconnect(LegacyComponentSerializer.legacySection()
                         .deserialize(plugin.getConfigurator().getMatsuMessages().getNowOffline(plugin.getDestinationMatsuServer().getDisplayName())));
             }
         }).exceptionally(e -> {
-            plugin.getLogger().error("{} could not be added to a server slot.", player.getGameProfile().getName());
+            plugin.getLogger().error("{} could not be connected to the destination server, or couldn't be added to a player slot.", player.getGameProfile().getName());
             player.disconnect(LegacyComponentSerializer.legacySection()
                     .deserialize(plugin.getConfigurator().getMatsuMessages().getNowOffline(plugin.getDestinationMatsuServer().getDisplayName())));
             return null;
@@ -132,7 +182,7 @@ public class ServerQueue {
                 return true;
             }
         }
-        return false; // Server is full
+        return false; // ERM! Aktshully... the server is full!
     }
 
     public boolean arePlayersQueued() {

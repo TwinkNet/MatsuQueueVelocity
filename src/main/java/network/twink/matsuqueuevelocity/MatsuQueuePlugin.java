@@ -102,7 +102,7 @@ public class MatsuQueuePlugin {
     }
 
     public void registerSlotPool(SlotPool slotPool) {
-        this.slotMap.put(slotPool.getName(),  slotPool);
+        this.slotMap.put(slotPool.getName(), slotPool);
         this.getLogger().warn("Registering slot pool {} with {} player slots", slotPool.getName(), slotPool.getCapacity());
     }
 
@@ -123,6 +123,16 @@ public class MatsuQueuePlugin {
         return findQueuePlayer(player.getUniqueId());
     }
 
+    /**
+     * Find a QueuePlayer in purgatory, all player slots, and all queues.
+     * Useful for moving a player from one status to another when we don't know where they are.
+     * Do not use this method to find a QueuePlayer and assign them to a queue or a slot,
+     * you will create a ghost QueuePlayer and probably cause problems.
+     * Use popQueuePlayer() if you need to make changes to where a QueuePlayer belongs.
+     *
+     * @param uuid The UUID of the QueuePlayer to be found
+     * @return A QueuePlayer, or null specified QueuePlayer wasn't found.
+     */
     public QueuePlayer findQueuePlayer(UUID uuid) {
         for (QueuePlayer queuePlayer : purgatory) {
             if (queuePlayer.getUuid().equals(uuid)) {
@@ -144,6 +154,13 @@ public class MatsuQueuePlugin {
         return null;
     }
 
+    /**
+     * Find a QueuePlayer in purgatory, all player slots, and all queues and remove them from whatever they were found in.
+     * Useful for moving a player from one status to another when we don't know where they are.
+     *
+     * @param id The UUID of the QueuePlayer to be found
+     * @return A QueuePlayer, or null specified QueuePlayer wasn't found.
+     */
     public QueuePlayer popQueuePlayer(UUID id) {
         for (QueuePlayer queuePlayer : purgatory) {
             if (queuePlayer.getUuid().equals(id)) {
@@ -178,9 +195,16 @@ public class MatsuQueuePlugin {
         return destinationServer;
     }
 
+    /**
+     * @return the last known status of the Destination Server
+     */
     public boolean isDestinationServerOnline() {
         return destinationServer.isOnline();
     }
+
+    /**
+     * @return the last known status of the Queue Server
+     */
     public boolean isQueueServerOnline() {
         return queueServer.isOnline();
     }
@@ -205,6 +229,20 @@ public class MatsuQueuePlugin {
         return slotMap.get(name);
     }
 
+    /**
+     * Check if the destination server should be considered full for a certain player.
+     * <p>
+     * This method takes into account the permissions a player has.
+     * The server may not be considered full to a player with priority queue status,
+     * but may be considered full for a player without priority queue status.
+     * <p>
+     * The server will be considered "full" to this method when either statement is true:
+     * - The slots that the player's assigned queue are allowed to access are full.
+     * - Anybody is queued in the player's assigned queue for the server.
+     *
+     * @param player The Player to check.
+     * @return Whether the destination server should be considered "full"
+     */
     public boolean isDestinationServerFull(Player player) {
         for (String s : queueMap.keySet()) {
             boolean flag = player.getPermissionChecker().test(rootPermission + "." + s);
@@ -215,7 +253,18 @@ public class MatsuQueuePlugin {
         return queueMap.get("default").isServerFull(this) || queueMap.get("default").arePlayersQueued();
     }
 
+    /**
+     * Detects the queue that the specified player belongs to and joins it.
+     *
+     * @param player
+     * @param queuePlayer
+     * @param forceDefault
+     * @return Whether this operation was successful.
+     */
     public boolean joinQueue(Player player, QueuePlayer queuePlayer, boolean forceDefault) {
+        if (!player.getUniqueId().equals(queuePlayer.getUuid())) {
+            throw new IllegalArgumentException("Mis-matching parameters: Player and QueuePlayer must represent the same person.");
+        }
         for (String s : queueMap.keySet()) {
             boolean flag = player.getPermissionChecker().test(rootPermission + "." + s);
             if (flag || (forceDefault && s.equals("default"))) {
@@ -226,7 +275,45 @@ public class MatsuQueuePlugin {
         if (!forceDefault) {
             return joinQueue(player, queuePlayer, true);
         }
-        return false; // Server must be full.
+        getLogger().error("There isn't a queue named \"default\", and this is causing problems. Add a default queue to your config, or light the server on fire.");
+        return false; // Someone forgot to configure a default server.
+    }
+
+    private String getTabHeaderTemplateForPlayer(Player player, boolean forceDefault) {
+        for (String s : queueMap.keySet()) {
+            boolean flag = player.getPermissionChecker().test(rootPermission + "." + s);
+            if (flag || (forceDefault && s.equals("default"))) {
+                ServerQueue serverQueue = queueMap.get(s);
+                return serverQueue.getTabHeaderTemplate();
+            }
+        }
+        if (!forceDefault) {
+            return getTabHeaderTemplateForPlayer(player, true);
+        }
+        return "\nerror\n";
+    }
+
+    public String getTabHeaderTemplateForPlayer(Player player) {
+        return getTabHeaderTemplateForPlayer(player, false);
+    }
+
+
+    public String getTabFooterTemplateForPlayer(Player player) {
+        return getTabFooterTemplateForPlayer(player, false);
+    }
+
+    private String getTabFooterTemplateForPlayer(Player player, boolean forceDefault) {
+        for (String s : queueMap.keySet()) {
+            boolean flag = player.getPermissionChecker().test(rootPermission + "." + s);
+            if (flag || (forceDefault && s.equals("default"))) {
+                ServerQueue serverQueue = queueMap.get(s);
+                return serverQueue.getTabFooterTemplate();
+            }
+        }
+        if (!forceDefault) {
+            return getTabFooterTemplateForPlayer(player, true);
+        }
+        return "\nerror\n";
     }
 
     public boolean joinQueue(Player player, QueuePlayer queuePlayer) {
@@ -246,7 +333,8 @@ public class MatsuQueuePlugin {
         if (!forceDefault) {
             return joinSlotPool(player, queuePlayer, true);
         }
-        return false; // Server must be full.
+        getLogger().error("There isn't a queue named \"default\", and this is causing problems. Add a default queue to your config, or light the server on fire.");
+        return false;
     }
 
 

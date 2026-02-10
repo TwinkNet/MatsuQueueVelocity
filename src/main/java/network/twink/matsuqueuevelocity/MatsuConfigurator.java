@@ -36,11 +36,11 @@ public class MatsuConfigurator {
         this.matsuMessages = new MatsuMessages();
         YMLParser parser = new YMLParser(file);
 
-        matsuMessages.setConnecting(parser.getString("status.connecting"));
-        matsuMessages.setPendingConnection(parser.getString("status.pending-connection"));
-        matsuMessages.setPositionInQueue(parser.getString("status.pos-in-queue"));
-        matsuMessages.setNowOffline(parser.getString("status.now-offline"));
-        matsuMessages.setNowQueued(parser.getString("status.now-queued"));
+        matsuMessages.setConnecting(parser.getString("status.connecting").replace("\\n", "\n"));
+        matsuMessages.setPendingConnection(parser.getString("status.pending-connection").replace("\\n", "\n"));
+        matsuMessages.setPositionInQueue(parser.getString("status.pos-in-queue").replace("\\n", "\n"));
+        matsuMessages.setNowOffline(parser.getString("status.now-offline").replace("\\n", "\n"));
+        matsuMessages.setNowQueued(parser.getString("status.now-queued").replace("\\n", "\n"));
 
         plugin.setGlobalPunishmentSeconds(parser.getInt("reconnect-cooldown"));
         plugin.setRootPermission(parser.getString("root-permission"));
@@ -55,6 +55,8 @@ public class MatsuConfigurator {
         for (String queueName : queueSection.getKeys(false)) {
             List<String> prioSlots = queueSection.getStringList(queueName + ".slots");
             ServerQueue queue = new ServerQueue(queueName, queueSection.getInt(queueName + ".priority"), prioSlots.toArray(new String[0]));
+            queue.setTabHeaderTemplate(queueSection.getString(queueName + ".tab-header", "Config Error").replace("\\n", "\n"));
+            queue.setTabFooterTemplate(queueSection.getString(queueName + ".tab-footer", "Config Error").replace("\\n", "\n"));
             plugin.registerQueue(queue);
         }
     }

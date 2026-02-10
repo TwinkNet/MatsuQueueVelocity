@@ -5,6 +5,7 @@ import net.kyori.adventure.text.TextComponent;
 import network.twink.matsuqueuevelocity.MatsuQueuePlugin;
 
 import java.util.Optional;
+import java.util.concurrent.TimeUnit;
 
 public class MatsuServer {
 
@@ -33,12 +34,12 @@ public class MatsuServer {
     public void updateOnline(MatsuQueuePlugin plugin) {
         getServer(plugin).ping()
                 .thenAccept(sp -> {
-                    if (sp.getDescriptionComponent() instanceof TextComponent tx) {
-                        isOnline = true;
-                        // we need to make sure the MOTD is actually showing up or the first player
-                        // that connects will get kicked with a yellow message that says "rm".
-                        // I assume it's because they're connecting before the world has loaded
-                        // this check seems to do the trick.
+                    if (sp.getDescriptionComponent() instanceof TextComponent) {
+                        if (!isOnline) {
+                            plugin.getProxyServer().getScheduler().buildTask(plugin, () -> {
+                                isOnline = true;
+                            }).delay(1L, TimeUnit.SECONDS).schedule();
+                        }
                     }
                 })
                 .exceptionally(ex -> {

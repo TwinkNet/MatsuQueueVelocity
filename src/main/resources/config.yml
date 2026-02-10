@@ -25,20 +25,20 @@ slots:
 queues:
   default:
     priority: 0
-    tab-header: "\\n§42builders§32tools\\n\\n§6{server} is full\\n§6{status}\\n"
+    tab-header: "\\n§42builders§32tools\\n\\n§6{status}\\n§6Position in queue: §l{pos}\\n"
     tab-footer: "\\n§6This account does not have priority queue status\\n"
     slots: # Sorted by priority
       - "standard"
   priority:
     priority: 1
-    tab-header: "\\n§42builders§32tools\\n\\n§6{server} is full\\n§6{status}\\n"
+    tab-header: "\\n§42builders§32tools\\n\\n§6{status}\\n§6Position in queue: §l{pos}\\n"
     tab-footer: "\\n§6This account has priority queue status and will be placed in a faster queue\\n"
     slots: # Sorted by priority
       - "priority"
       - "standard"
   operator:
     priority: 2
-    tab-header: "\\n§42builders§32tools\\n\\n§6{server} is full\\n§6{status}\\n"
+    tab-header: "\\n§42builders§32tools\\n\\n§6{status}\\n§6Position in queue: §l{pos}\\n"
     tab-footer: "\\n§6This account has operator status and will be placed in the fastest queue\\n"
     slots: # Sorted by priority
       - "standard"

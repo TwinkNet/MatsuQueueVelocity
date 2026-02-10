@@ -7,6 +7,7 @@ public class QueuePlayer {
     private UUID uuid;
     private State queueState;
     private long stateLastUpdated;
+    private int lastKnownPosInQueue = -1;
 
     public QueuePlayer(UUID uuid) {
         this.uuid = uuid;
@@ -31,7 +32,11 @@ public class QueuePlayer {
         this.stateLastUpdated = System.currentTimeMillis();
     }
 
-    public int getPositionInQueue() {
-        return -1; // TODO
+    public void setLastKnownPosInQueue(int lastKnownPosInQueue) {
+        this.lastKnownPosInQueue = lastKnownPosInQueue;
+    }
+
+    public int getCachedPositionInQueue() {
+        return lastKnownPosInQueue;
     }
 }
