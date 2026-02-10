@@ -1,6 +1,7 @@
 package network.twink.matsuqueuevelocity.slot;
 
 import com.velocitypowered.api.proxy.Player;
+import com.velocitypowered.api.proxy.ServerConnection;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer;
 import network.twink.matsuqueuevelocity.MatsuQueuePlugin;
@@ -45,14 +46,24 @@ public class SlotPool {
 
                 MatsuMessages matsuMessages = plugin.getConfigurator().getMatsuMessages();
                 player.sendMessage(LegacyComponentSerializer.legacySection().deserialize(
-                        matsuMessages.format(
-                                matsuMessages.getPendingConnection(), plugin.getDestinationMatsuServer().getDisplayName(), matsuMessages.getPendingConnection(), -1)
+                        matsuMessages.getPendingConnection(plugin.getDestinationMatsuServer().getDisplayName())
                 ));
+            } else if (queuePlayer.getQueueState() == State.PLAYING) {
+                Optional<Player> optional = plugin.getProxyServer().getPlayer(queuePlayer.getUuid());
+                if (optional.isEmpty()) return;
+                Player player = optional.get();
+                Optional<ServerConnection> connection = player.getCurrentServer();
+                if (connection.isEmpty()) return;
+                if (connection.get().getServerInfo().getName().equals(plugin.getQueueServer().getServerInfo().getName())) {
+                    player.disconnect(LegacyComponentSerializer.legacySection()
+                            .deserialize(plugin.getConfigurator().getMatsuMessages().getNowOffline(plugin.getDestinationMatsuServer().getDisplayName())));
+                }
             }
         });
     }
 
     public void connectAnyPending(MatsuQueuePlugin plugin) {
+        if (!plugin.isDestinationServerOnline()) return;
         fill.keySet().forEach((uuid) -> {
             QueuePlayer queuePlayer = fill.get(uuid);
             if (queuePlayer.getQueueState() == State.PENDING && System.currentTimeMillis() - queuePlayer.getStateLastUpdated() > plugin.getGlobalPunishmentSeconds() * 1000L) {
@@ -61,7 +72,7 @@ public class SlotPool {
                 Player player = optional.get();
                 if (player.getCurrentServer().isEmpty()) return;
                 MatsuMessages matsuMessages = plugin.getConfigurator().getMatsuMessages();
-                player.sendMessage(LegacyComponentSerializer.legacySection().deserialize(matsuMessages.format(matsuMessages.getConnecting(), plugin.getDestinationMatsuServer().getDisplayName(), matsuMessages.getConnecting(), -1)));
+                player.sendMessage(LegacyComponentSerializer.legacySection().deserialize(matsuMessages.getConnecting(plugin.getDestinationMatsuServer().getDisplayName())));
                 player.createConnectionRequest(plugin.getDestinationServer()).connect().thenAccept(result -> {
                     if (result.isSuccessful()) queuePlayer.setQueueState(State.PLAYING);
                     else {

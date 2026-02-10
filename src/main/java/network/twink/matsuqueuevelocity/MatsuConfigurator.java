@@ -48,11 +48,11 @@ public class MatsuConfigurator {
         plugin.setDestinationServer(new MatsuServer(parser.getString("destination-server.velocity-name"), parser.getString("destination-server.display-name")));
         ConfigSection queueSection = parser.getSection("queues");
         ConfigSection slotSection = parser.getSection("slots");
-        for (String key : slotSection.getKeys()) {
+        for (String key : slotSection.getKeys(false)) {
             SlotPool pool = new SlotPool(key, slotSection.getInt(key + ".capacity", -1));
             plugin.registerSlotPool(pool);
         }
-        for (String queueName : queueSection.getKeys()) {
+        for (String queueName : queueSection.getKeys(false)) {
             List<String> prioSlots = queueSection.getStringList(queueName + ".slots");
             ServerQueue queue = new ServerQueue(queueName, queueSection.getInt(queueName + ".priority"), prioSlots.toArray(new String[0]));
             plugin.registerQueue(queue);

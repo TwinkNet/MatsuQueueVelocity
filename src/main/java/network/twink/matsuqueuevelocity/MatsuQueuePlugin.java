@@ -18,6 +18,7 @@ import org.slf4j.Logger;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Path;
+import java.util.Comparator;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.LinkedBlockingDeque;
@@ -53,6 +54,8 @@ public class MatsuQueuePlugin {
         this.getLogger().info("MatsuQueuePlugin has been initialized");
         try {
             configurator = new MatsuConfigurator(this);
+            this.destinationServer.updateOnline(this);
+            this.queueServer.updateOnline(this);
         } catch (IOException e) {
             e.printStackTrace();
         }
@@ -62,16 +65,18 @@ public class MatsuQueuePlugin {
             slotMap.forEach((name, slotPool) -> {
                 slotPool.connectAnyPending(MatsuQueuePlugin.this);
             });
-            queueMap.forEach((name, serverQueue) -> {
+            queueMap.values().stream().sorted(Comparator.comparingInt(ServerQueue::getPriority).reversed()).forEach((serverQueue) -> {
                 serverQueue.connectFirstIfPossible(MatsuQueuePlugin.this);
             });
+            destinationServer.updateOnline(this);
+            queueServer.updateOnline(this);
         }).repeat(500L, TimeUnit.MILLISECONDS).schedule();
         getProxyServer().getScheduler().buildTask(this, () -> {
             slotMap.forEach((name, slotPool) -> {
                 slotPool.notifyAnyPending(this);
             });
             queueMap.forEach((name, serverQueue) -> {
-                // notify queued
+                serverQueue.notifyAllQueueMembers(this);
             });
         }).repeat(10L, TimeUnit.SECONDS).schedule();
     }
@@ -98,10 +103,12 @@ public class MatsuQueuePlugin {
 
     public void registerSlotPool(SlotPool slotPool) {
         this.slotMap.put(slotPool.getName(),  slotPool);
+        this.getLogger().warn("Registering slot pool {} with {} player slots", slotPool.getName(), slotPool.getCapacity());
     }
 
     public void registerQueue(ServerQueue queue) {
         this.queueMap.put(queue.getName(), queue);
+        this.getLogger().warn("Registering queue {} with a {} priority level", queue.getName(), queue.getPriority());
     }
 
     public void setGlobalPunishmentSeconds(int globalPunishmentSeconds) {
@@ -174,6 +181,9 @@ public class MatsuQueuePlugin {
     public boolean isDestinationServerOnline() {
         return destinationServer.isOnline();
     }
+    public boolean isQueueServerOnline() {
+        return queueServer.isOnline();
+    }
 
     public void setQueueServer(MatsuServer queueServer) {
         this.queueServer = queueServer;
@@ -199,10 +209,10 @@ public class MatsuQueuePlugin {
         for (String s : queueMap.keySet()) {
             boolean flag = player.getPermissionChecker().test(rootPermission + "." + s);
             if (flag) {
-                return queueMap.get(s).isServerFull(this);
+                return queueMap.get(s).isServerFull(this) || queueMap.get(s).arePlayersQueued();
             }
         }
-        return queueMap.get("default").isServerFull(this);
+        return queueMap.get("default").isServerFull(this) || queueMap.get("default").arePlayersQueued();
     }
 
     public boolean joinQueue(Player player, QueuePlayer queuePlayer, boolean forceDefault) {
@@ -210,9 +220,7 @@ public class MatsuQueuePlugin {
             boolean flag = player.getPermissionChecker().test(rootPermission + "." + s);
             if (flag || (forceDefault && s.equals("default"))) {
                 ServerQueue serverQueue = queueMap.get(s);
-                if (!serverQueue.isServerFull(this)) {
-                    return serverQueue.enqueue(queuePlayer);
-                }
+                return serverQueue.enqueue(queuePlayer);
             }
         }
         if (!forceDefault) {

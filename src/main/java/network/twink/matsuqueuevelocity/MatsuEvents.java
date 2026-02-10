@@ -31,8 +31,13 @@ public class MatsuEvents {
         }
         boolean needToQueue = getPlugin().isDestinationServerFull(player);
         if (needToQueue) {
+            if (!getPlugin().isQueueServerOnline()) {
+                event.getPlayer().disconnect(LegacyComponentSerializer.legacySection().deserialize(getPlugin().getConfigurator().getMatsuMessages().getNowOffline(getPlugin().getQueueMatsuServer().getDisplayName())));
+                return;
+            }
             getPlugin().joinQueue(player, queuePlayer);
             queuePlayer.setQueueState(State.QUEUED);
+            event.setInitialServer(getPlugin().getQueueServer());
         } else {
             boolean joined = getPlugin().joinSlotPool(player, queuePlayer);
             if (!joined) {
@@ -40,7 +45,11 @@ public class MatsuEvents {
                 player.disconnect(LegacyComponentSerializer.legacySection().deserialize("\2476A severe error occurred while connecting."));
                 return;
             }
-            if (queuePlayer.getQueueState() == State.LEFT && System.currentTimeMillis() - queuePlayer.getStateLastUpdated() < getPlugin().getGlobalPunishmentSeconds() * 1000L) {
+            if (!getPlugin().isDestinationServerOnline() || (queuePlayer.getQueueState() == State.LEFT && System.currentTimeMillis() - queuePlayer.getStateLastUpdated() < getPlugin().getGlobalPunishmentSeconds() * 1000L)) {
+                if (!getPlugin().isQueueServerOnline()) {
+                    event.getPlayer().disconnect(LegacyComponentSerializer.legacySection().deserialize(getPlugin().getConfigurator().getMatsuMessages().getNowOffline(getPlugin().getQueueMatsuServer().getDisplayName())));
+                    return;
+                }
                 queuePlayer.setQueueState(State.PENDING);
                 event.setInitialServer(getPlugin().getQueueServer());
                 return;
@@ -60,15 +69,15 @@ public class MatsuEvents {
                     case QUEUED -> {
                         MatsuMessages matsuMessages = getPlugin().getConfigurator().getMatsuMessages();
                         e.getPlayer().sendMessage(LegacyComponentSerializer.legacySection().deserialize(
-                                matsuMessages.format(
-                                        matsuMessages.getNowQueued(), getPlugin().getDestinationMatsuServer().getDisplayName(), matsuMessages.getPositionInQueue(), 2)
+                                matsuMessages.getNowQueued(getPlugin().getDestinationMatsuServer().getDisplayName())
                         ));
                     }
                     case PENDING -> {
+                        boolean flag = !getPlugin().isDestinationServerOnline();
                         MatsuMessages matsuMessages = getPlugin().getConfigurator().getMatsuMessages();
-                        e.getPlayer().sendMessage(LegacyComponentSerializer.legacySection().deserialize(
-                                matsuMessages.format(
-                                        matsuMessages.getPendingConnection(), getPlugin().getDestinationMatsuServer().getDisplayName(), matsuMessages.getPendingConnection(), -1)
+                        e.getPlayer().sendMessage(LegacyComponentSerializer.legacySection().deserialize(flag ?
+                                matsuMessages.getNowOffline(getPlugin().getDestinationMatsuServer().getDisplayName()) :
+                                matsuMessages.getPendingConnection(getPlugin().getDestinationMatsuServer().getDisplayName())
                         ));
                     }
                 }
