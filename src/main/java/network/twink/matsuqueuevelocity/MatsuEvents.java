@@ -2,6 +2,7 @@ package network.twink.matsuqueuevelocity;
 
 import com.velocitypowered.api.event.Subscribe;
 import com.velocitypowered.api.event.connection.DisconnectEvent;
+import com.velocitypowered.api.event.player.KickedFromServerEvent;
 import com.velocitypowered.api.event.player.PlayerChooseInitialServerEvent;
 import com.velocitypowered.api.event.player.ServerPostConnectEvent;
 import com.velocitypowered.api.proxy.Player;
@@ -146,6 +147,16 @@ public class MatsuEvents {
                 }
             }
         }
+    }
+
+    @Subscribe
+    public void onKick(KickedFromServerEvent e) {
+        // Sometimes velocity doesn't respect that we don't want to connect players to a fallback server on kick
+        // even when we have failover-on-unexpected-server-disconnect set to false in the config.
+        // we will just make sure they get kicked no matter what.
+        e.getPlayer().disconnect(e.getServerKickReason().orElse(LegacyComponentSerializer.legacySection().deserialize(
+                getPlugin().getConfigurator().getMatsuMessages().getNowOffline(getPlugin().getQueueMatsuServer().getDisplayName())
+        )));
     }
 
     @Subscribe
