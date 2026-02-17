@@ -38,6 +38,7 @@ public class MatsuConfigurator {
 
         matsuMessages.setConnecting(parser.getString("status.connecting").replace("\\n", "\n"));
         matsuMessages.setPendingConnection(parser.getString("status.pending-connection").replace("\\n", "\n"));
+        matsuMessages.setWaitingConnection(parser.getString("status.waiting-connection").replace("\\n", "\n"));
         matsuMessages.setPositionInQueue(parser.getString("status.pos-in-queue").replace("\\n", "\n"));
         matsuMessages.setNowOffline(parser.getString("status.now-offline").replace("\\n", "\n"));
         matsuMessages.setNowQueued(parser.getString("status.now-queued").replace("\\n", "\n"));
