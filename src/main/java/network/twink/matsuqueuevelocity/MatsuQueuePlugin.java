@@ -59,7 +59,7 @@ public class MatsuQueuePlugin {
         } catch (IOException e) {
             e.printStackTrace();
         }
-        this.getProxyServer().getEventManager().register(this, new MatsuEvents(this));
+        this.getProxyServer().getEventManager().register(this, new MatsuEventHandler(this));
         getProxyServer().getScheduler().buildTask(this, () -> {
             purgatory.removeIf(queuePlayer -> queuePlayer.getQueueState() == State.LEFT && System.currentTimeMillis() - queuePlayer.getStateLastUpdated() > MatsuQueuePlugin.this.getGlobalPunishmentSeconds() * 1000L);
             slotMap.forEach((name, slotPool) -> {

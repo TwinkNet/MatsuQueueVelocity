@@ -28,6 +28,9 @@ public class QueuePlayer {
     }
 
     public void setQueueState(State queueState) {
+        if (queueState != State.QUEUED) {
+            setLastKnownPosInQueue(-1);
+        }
         this.queueState = queueState;
         this.stateLastUpdated = System.currentTimeMillis();
     }

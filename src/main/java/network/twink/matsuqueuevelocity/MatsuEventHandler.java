@@ -4,10 +4,10 @@ import com.velocitypowered.api.event.Subscribe;
 import com.velocitypowered.api.event.connection.DisconnectEvent;
 import com.velocitypowered.api.event.player.KickedFromServerEvent;
 import com.velocitypowered.api.event.player.PlayerChooseInitialServerEvent;
+import com.velocitypowered.api.event.player.ServerConnectedEvent;
 import com.velocitypowered.api.event.player.ServerPostConnectEvent;
 import com.velocitypowered.api.proxy.Player;
 import com.velocitypowered.api.proxy.ServerConnection;
-import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer;
 import network.twink.matsuqueuevelocity.queue.QueuePlayer;
 import network.twink.matsuqueuevelocity.queue.State;
@@ -15,11 +15,11 @@ import network.twink.matsuqueuevelocity.util.MatsuMessages;
 
 import java.util.UUID;
 
-public class MatsuEvents {
+public class MatsuEventHandler {
 
     private final MatsuQueuePlugin plugin;
 
-    public MatsuEvents(MatsuQueuePlugin plugin) {
+    public MatsuEventHandler(MatsuQueuePlugin plugin) {
         this.plugin = plugin;
     }
 
@@ -116,7 +116,7 @@ public class MatsuEvents {
                         MatsuMessages matsuMessages = getPlugin().getConfigurator().getMatsuMessages();
                         e.getPlayer().sendMessage(LegacyComponentSerializer.legacySection().deserialize(flag ?
                                 matsuMessages.getNowOffline(getPlugin().getDestinationMatsuServer().getDisplayName()) :
-                                matsuMessages.getPendingConnection(getPlugin().getDestinationMatsuServer().getDisplayName())
+                                matsuMessages.getWaitingConnection(getPlugin().getDestinationMatsuServer().getDisplayName())
                         ));
                         String header = getPlugin()
                                 .getConfigurator()

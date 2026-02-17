@@ -13,6 +13,7 @@ status:
   pos-in-queue: "§6Position in queue: §l{pos}"
   connecting: "§6Connecting to {server}..."
   pending-connection: "§6Pending connection to {server}..."
+  waiting-connection: "§6Waiting to connect to {server}..."
 
 slots:
   standard:

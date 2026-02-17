@@ -7,6 +7,7 @@ public class MatsuMessages {
     private String positionInQueue;
     private String connecting;
     private String pendingConnection;
+    private String waitingConnection;
 
 
     public void setNowQueued(String nowQueued) {
@@ -47,6 +48,14 @@ public class MatsuMessages {
 
     public String getPendingConnection(String serverNam) {
         return format(this.pendingConnection, serverNam, -1);
+    }
+
+    public void setWaitingConnection(String waitingConnection) {
+        this.waitingConnection = waitingConnection;
+    }
+
+    public String getWaitingConnection(String serverNam) {
+        return format(this.waitingConnection, serverNam, -1);
     }
 
     private String format(String template, String serverName, int pos) {
