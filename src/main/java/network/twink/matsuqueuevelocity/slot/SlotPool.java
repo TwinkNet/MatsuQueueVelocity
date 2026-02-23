@@ -66,7 +66,7 @@ public class SlotPool {
         if (!plugin.isDestinationServerOnline()) return;
         fill.keySet().forEach((uuid) -> {
             QueuePlayer queuePlayer = fill.get(uuid);
-            if (queuePlayer.getQueueState() == State.PENDING && System.currentTimeMillis() - queuePlayer.getStateLastUpdated() > plugin.getGlobalPunishmentSeconds() * 1000L) {
+            if (queuePlayer.getQueueState() == State.PENDING && System.currentTimeMillis() - queuePlayer.getStateLastUpdated() > queuePlayer.getPunishmentSeconds() * 1000L) {
                 Optional<Player> optional = plugin.getProxyServer().getPlayer(queuePlayer.getUuid());
                 if (optional.isEmpty()) return;
                 Player player = optional.get();

@@ -43,7 +43,6 @@ public class MatsuConfigurator {
         matsuMessages.setNowOffline(parser.getString("status.now-offline").replace("\\n", "\n"));
         matsuMessages.setNowQueued(parser.getString("status.now-queued").replace("\\n", "\n"));
 
-        plugin.setGlobalPunishmentSeconds(parser.getInt("reconnect-cooldown"));
         plugin.setRootPermission(parser.getString("root-permission"));
         plugin.setQueueServer(new MatsuServer(parser.getString("queue-server.velocity-name"), parser.getString("queue-server.display-name")));
         plugin.setDestinationServer(new MatsuServer(parser.getString("destination-server.velocity-name"), parser.getString("destination-server.display-name")));
@@ -55,7 +54,8 @@ public class MatsuConfigurator {
         }
         for (String queueName : queueSection.getKeys(false)) {
             List<String> prioSlots = queueSection.getStringList(queueName + ".slots");
-            ServerQueue queue = new ServerQueue(queueName, queueSection.getInt(queueName + ".priority"), prioSlots.toArray(new String[0]));
+            int punishmentSeconds = queueSection.getInt(queueName + ".reconnect-cooldown", 22);
+            ServerQueue queue = new ServerQueue(queueName, queueSection.getInt(queueName + ".priority"), prioSlots.toArray(new String[0]), punishmentSeconds);
             queue.setTabHeaderTemplate(queueSection.getString(queueName + ".tab-header", "Config Error").replace("\\n", "\n"));
             queue.setTabFooterTemplate(queueSection.getString(queueName + ".tab-footer", "Config Error").replace("\\n", "\n"));
             plugin.registerQueue(queue);

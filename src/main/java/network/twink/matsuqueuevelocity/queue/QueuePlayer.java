@@ -1,5 +1,8 @@
 package network.twink.matsuqueuevelocity.queue;
 
+import com.velocitypowered.api.proxy.Player;
+import network.twink.matsuqueuevelocity.MatsuQueuePlugin;
+
 import java.util.UUID;
 
 public class QueuePlayer {
@@ -8,11 +11,13 @@ public class QueuePlayer {
     private State queueState;
     private long stateLastUpdated;
     private int lastKnownPosInQueue = -1;
+    int punishmentSeconds = -1;
 
-    public QueuePlayer(UUID uuid) {
-        this.uuid = uuid;
+    public QueuePlayer(MatsuQueuePlugin plugin, Player player) {
+        this.uuid = player.getUniqueId();
         this.queueState = State.IDLE;
         this.stateLastUpdated = System.currentTimeMillis();
+        this.punishmentSeconds = plugin.getQueue(player, false).getPunishmentSeconds();
     }
 
     public UUID getUuid() {
@@ -33,6 +38,14 @@ public class QueuePlayer {
         }
         this.queueState = queueState;
         this.stateLastUpdated = System.currentTimeMillis();
+    }
+
+    public int getPunishmentSeconds() {
+        return punishmentSeconds;
+    }
+
+    public void setPunishmentSeconds(int punishmentSeconds) {
+        this.punishmentSeconds = punishmentSeconds;
     }
 
     public void setLastKnownPosInQueue(int lastKnownPosInQueue) {

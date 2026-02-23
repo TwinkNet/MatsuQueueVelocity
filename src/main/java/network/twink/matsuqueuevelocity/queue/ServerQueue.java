@@ -15,16 +15,18 @@ public class ServerQueue {
     private final String name;
     private final int priority;
     private final String[] prioritisedSlots;
+    private final int punishmentSeconds;
 
     private final LinkedBlockingDeque<QueuePlayer> queue = new  LinkedBlockingDeque<>();
 
     private String tabHeader;
     private String tabFooter;
 
-    public ServerQueue(String name, int priority, String[] prioritisedSlots) {
+    public ServerQueue(String name, int priority, String[] prioritisedSlots, int punishmentSeconds) {
         this.name = name;
         this.priority = priority;
         this.prioritisedSlots = prioritisedSlots;
+        this.punishmentSeconds = punishmentSeconds;
     }
 
     public String getName() {
@@ -49,6 +51,10 @@ public class ServerQueue {
 
     public void setTabFooterTemplate(String tabFooter) {
         this.tabFooter = tabFooter;
+    }
+
+    public int getPunishmentSeconds() {
+        return punishmentSeconds;
     }
 
     public int getPositionInQueue(UUID uuid) {

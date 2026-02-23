@@ -30,7 +30,7 @@ public class MatsuEventHandler {
         String queueServerOffline = getPlugin().getConfigurator().getMatsuMessages().getNowOffline(getPlugin().getQueueMatsuServer().getDisplayName());
         String destServerOffline = getPlugin().getConfigurator().getMatsuMessages().getNowOffline(getPlugin().getDestinationMatsuServer().getDisplayName());
         if (queuePlayer == null) {
-            queuePlayer = new QueuePlayer(player.getUniqueId());
+            queuePlayer = new QueuePlayer(plugin, player);
         }
         boolean needToQueue = !getPlugin().isDestinationServerOnline() || getPlugin().isDestinationServerFull(player);
         if (needToQueue) {
@@ -57,7 +57,7 @@ public class MatsuEventHandler {
                 // the server admin will figure it out eventually when they see all of our fuckass console spam.
                 return;
             }
-            if (!getPlugin().isDestinationServerOnline() || (queuePlayer.getQueueState() == State.LEFT && System.currentTimeMillis() - queuePlayer.getStateLastUpdated() < getPlugin().getGlobalPunishmentSeconds() * 1000L)) {
+            if (!getPlugin().isDestinationServerOnline() || (queuePlayer.getQueueState() == State.LEFT && System.currentTimeMillis() - queuePlayer.getStateLastUpdated() < queuePlayer.getPunishmentSeconds() * 1000L)) {
                 if (!getPlugin().isQueueServerOnline()) {
                     event.getPlayer().disconnect(LegacyComponentSerializer.legacySection().deserialize(queueServerOffline));
                     return;

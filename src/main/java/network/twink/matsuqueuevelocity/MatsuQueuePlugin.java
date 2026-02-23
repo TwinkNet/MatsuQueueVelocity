@@ -40,7 +40,6 @@ public class MatsuQueuePlugin {
     private final ConcurrentHashMap<String, ServerQueue> queueMap = new ConcurrentHashMap<>();
     private final ConcurrentHashMap<String, SlotPool> slotMap = new ConcurrentHashMap<>();
     public final LinkedBlockingDeque<QueuePlayer> purgatory = new LinkedBlockingDeque<>();
-    private int globalPunishmentSeconds;
 
     @Inject
     public MatsuQueuePlugin(ProxyServer server, Logger logger, @DataDirectory Path dataDirectory) {
@@ -61,7 +60,7 @@ public class MatsuQueuePlugin {
         }
         this.getProxyServer().getEventManager().register(this, new MatsuEventHandler(this));
         getProxyServer().getScheduler().buildTask(this, () -> {
-            purgatory.removeIf(queuePlayer -> queuePlayer.getQueueState() == State.LEFT && System.currentTimeMillis() - queuePlayer.getStateLastUpdated() > MatsuQueuePlugin.this.getGlobalPunishmentSeconds() * 1000L);
+            purgatory.removeIf(queuePlayer -> queuePlayer.getQueueState() == State.LEFT && System.currentTimeMillis() - queuePlayer.getStateLastUpdated() > MatsuQueuePlugin.this.getMaxPunishmentSeconds() * 1000L);
             slotMap.forEach((name, slotPool) -> {
                 slotPool.connectAnyPending(MatsuQueuePlugin.this);
             });
@@ -111,12 +110,12 @@ public class MatsuQueuePlugin {
         this.getLogger().warn("Registering queue {} with a {} priority level", queue.getName(), queue.getPriority());
     }
 
-    public void setGlobalPunishmentSeconds(int globalPunishmentSeconds) {
-        this.globalPunishmentSeconds = globalPunishmentSeconds;
-    }
-
-    public int getGlobalPunishmentSeconds() {
-        return globalPunishmentSeconds;
+    public int getMaxPunishmentSeconds() {
+        int max = 0;
+        for (ServerQueue value : queueMap.values()) {
+            if (value.getPunishmentSeconds() > max) max = value.getPunishmentSeconds();
+        }
+        return max;
     }
 
     public QueuePlayer findQueuePlayer(Player player) {
@@ -277,6 +276,20 @@ public class MatsuQueuePlugin {
         }
         getLogger().error("There isn't a queue named \"default\", and this is causing problems. Add a default queue to your config, or light the server on fire.");
         return false; // Someone forgot to configure a default server.
+    }
+
+    public ServerQueue getQueue(Player player, boolean forceDefault) {
+        for (String s : queueMap.keySet()) {
+            boolean flag = player.getPermissionChecker().test(rootPermission + "." + s);
+            if (flag || (forceDefault && s.equals("default"))) {
+                return queueMap.get(s);
+            }
+        }
+        if (!forceDefault) {
+            return getQueue(player, true);
+        }
+        getLogger().error("There isn't a queue named \"default\", and this is causing problems. Add a default queue to your config, or light the server on fire.");
+        return null; // Someone forgot to configure a default server.
     }
 
     private String getTabHeaderTemplateForPlayer(Player player, boolean forceDefault) {

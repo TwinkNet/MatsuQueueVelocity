@@ -13,6 +13,7 @@ public class MatsuServer {
     private final String displayName;
     private boolean isOnline;
 
+
     public MatsuServer(String velocityName, String displayName) {
         this.velocityName = velocityName;
         this.displayName = displayName;
