@@ -5,7 +5,6 @@ destination-server:
   velocity-name: main
   display-name: 2b2t
 root-permission: "matsu.queue"
-reconnect-cooldown: 10
 
 status:
   now-queued: "§6{server} is full"
