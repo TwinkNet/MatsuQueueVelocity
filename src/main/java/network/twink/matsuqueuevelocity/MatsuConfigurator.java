@@ -42,6 +42,7 @@ public class MatsuConfigurator {
         matsuMessages.setPositionInQueue(parser.getString("status.pos-in-queue").replace("\\n", "\n"));
         matsuMessages.setNowOffline(parser.getString("status.now-offline").replace("\\n", "\n"));
         matsuMessages.setNowQueued(parser.getString("status.now-queued").replace("\\n", "\n"));
+        matsuMessages.setEstimatedTime(parser.getString("status.estimated-time").replace("\\n", "\n"));
 
         plugin.setRootPermission(parser.getString("root-permission"));
         plugin.setQueueServer(new MatsuServer(parser.getString("queue-server.velocity-name"), parser.getString("queue-server.display-name")));

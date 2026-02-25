@@ -1,6 +1,7 @@
 package network.twink.matsuqueuevelocity.queue;
 
 import com.velocitypowered.api.proxy.Player;
+import com.velocitypowered.api.scheduler.ScheduledTask;
 import network.twink.matsuqueuevelocity.MatsuQueuePlugin;
 
 import java.util.UUID;
@@ -11,13 +12,16 @@ public class QueuePlayer {
     private State queueState;
     private long stateLastUpdated;
     private int lastKnownPosInQueue = -1;
-    int punishmentSeconds = -1;
+    private int cachedPunishmentSeconds = -1;
+    private String cachedQueueKey;
+    private ScheduledTask actionBarTask = null;
 
-    public QueuePlayer(MatsuQueuePlugin plugin, Player player) {
+    public QueuePlayer(MatsuQueuePlugin plugin, Player player, String cachedQueueKey) {
         this.uuid = player.getUniqueId();
         this.queueState = State.IDLE;
         this.stateLastUpdated = System.currentTimeMillis();
-        this.punishmentSeconds = plugin.getQueue(player, false).getPunishmentSeconds();
+        this.cachedQueueKey = cachedQueueKey;
+        this.cachedPunishmentSeconds = plugin.getQueue(player, false).getPunishmentSeconds();
     }
 
     public UUID getUuid() {
@@ -40,12 +44,20 @@ public class QueuePlayer {
         this.stateLastUpdated = System.currentTimeMillis();
     }
 
-    public int getPunishmentSeconds() {
-        return punishmentSeconds;
+    public String getCachedQueueKey() {
+        return cachedQueueKey;
     }
 
-    public void setPunishmentSeconds(int punishmentSeconds) {
-        this.punishmentSeconds = punishmentSeconds;
+    public void setCachedQueueKey(String cachedQueueKey) {
+        this.cachedQueueKey = cachedQueueKey;
+    }
+
+    public int getCachedPunishmentSeconds() {
+        return cachedPunishmentSeconds;
+    }
+
+    public void setCachedPunishmentSeconds(int cachedPunishmentSeconds) {
+        this.cachedPunishmentSeconds = cachedPunishmentSeconds;
     }
 
     public void setLastKnownPosInQueue(int lastKnownPosInQueue) {
@@ -54,5 +66,15 @@ public class QueuePlayer {
 
     public int getCachedPositionInQueue() {
         return lastKnownPosInQueue;
+    }
+
+    public void cancelAnyTask() {
+        if (actionBarTask != null) {
+            actionBarTask.cancel();
+        }
+    }
+
+    public void setActionBarTask(ScheduledTask actionBarTask) {
+        this.actionBarTask = actionBarTask;
     }
 }

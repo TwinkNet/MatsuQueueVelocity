@@ -66,7 +66,7 @@ public class SlotPool {
         if (!plugin.isDestinationServerOnline()) return;
         fill.keySet().forEach((uuid) -> {
             QueuePlayer queuePlayer = fill.get(uuid);
-            if (queuePlayer.getQueueState() == State.PENDING && System.currentTimeMillis() - queuePlayer.getStateLastUpdated() > queuePlayer.getPunishmentSeconds() * 1000L) {
+            if (queuePlayer.getQueueState() == State.PENDING && System.currentTimeMillis() - queuePlayer.getStateLastUpdated() > queuePlayer.getCachedPunishmentSeconds() * 1000L) {
                 Optional<Player> optional = plugin.getProxyServer().getPlayer(queuePlayer.getUuid());
                 if (optional.isEmpty()) return;
                 Player player = optional.get();
@@ -74,10 +74,15 @@ public class SlotPool {
                 MatsuMessages matsuMessages = plugin.getConfigurator().getMatsuMessages();
                 player.sendMessage(LegacyComponentSerializer.legacySection().deserialize(matsuMessages.getConnecting(plugin.getDestinationMatsuServer().getDisplayName())));
                 player.createConnectionRequest(plugin.getDestinationServer()).connect().thenAccept(result -> {
-                    if (result.isSuccessful()) queuePlayer.setQueueState(State.PLAYING);
+                    if (result.isSuccessful()) {
+                        queuePlayer.setQueueState(State.PLAYING);
+                        queuePlayer.cancelAnyTask();
+                        player.sendActionBar(Component.empty());
+                    }
                     else {
                         plugin.getLogger().error("{} could not be connected to the main server.", player.getGameProfile().getName());
-                        player.disconnect(LegacyComponentSerializer.legacySection().deserialize("\247Erm"));
+                        player.disconnect(LegacyComponentSerializer.legacySection()
+                                .deserialize(plugin.getConfigurator().getMatsuMessages().getNowOffline(plugin.getDestinationMatsuServer().getDisplayName())));
                     }
                 });
             }

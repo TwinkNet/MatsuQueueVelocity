@@ -4,7 +4,6 @@ import com.velocitypowered.api.event.Subscribe;
 import com.velocitypowered.api.event.connection.DisconnectEvent;
 import com.velocitypowered.api.event.player.KickedFromServerEvent;
 import com.velocitypowered.api.event.player.PlayerChooseInitialServerEvent;
-import com.velocitypowered.api.event.player.ServerConnectedEvent;
 import com.velocitypowered.api.event.player.ServerPostConnectEvent;
 import com.velocitypowered.api.proxy.Player;
 import com.velocitypowered.api.proxy.ServerConnection;
@@ -14,6 +13,7 @@ import network.twink.matsuqueuevelocity.queue.State;
 import network.twink.matsuqueuevelocity.util.MatsuMessages;
 
 import java.util.UUID;
+import java.util.concurrent.TimeUnit;
 
 public class MatsuEventHandler {
 
@@ -30,15 +30,15 @@ public class MatsuEventHandler {
         String queueServerOffline = getPlugin().getConfigurator().getMatsuMessages().getNowOffline(getPlugin().getQueueMatsuServer().getDisplayName());
         String destServerOffline = getPlugin().getConfigurator().getMatsuMessages().getNowOffline(getPlugin().getDestinationMatsuServer().getDisplayName());
         if (queuePlayer == null) {
-            queuePlayer = new QueuePlayer(plugin, player);
+            queuePlayer = new QueuePlayer(plugin, player, getPlugin().getQueue(player, false).getName());
         }
-        boolean needToQueue = !getPlugin().isDestinationServerOnline() || getPlugin().isDestinationServerFull(player);
+        boolean needToQueue = !getPlugin().isDestinationServerOnline() || getPlugin().isDestinationServerFull(queuePlayer);
         if (needToQueue) {
             if (!getPlugin().isQueueServerOnline()) {
                 event.getPlayer().disconnect(LegacyComponentSerializer.legacySection().deserialize(queueServerOffline));
                 return;
             }
-            if (getPlugin().joinQueue(player, queuePlayer)) {
+            if (getPlugin().joinQueue(queuePlayer)) {
                 queuePlayer.setQueueState(State.QUEUED);
                 event.setInitialServer(getPlugin().getQueueServer());
             } else {
@@ -49,7 +49,7 @@ public class MatsuEventHandler {
                 return;
             }
         } else {
-            boolean joined = getPlugin().joinSlotPool(player, queuePlayer);
+            boolean joined = getPlugin().joinSlotPool(queuePlayer);
             if (!joined) {
                 event.getPlayer().disconnect(LegacyComponentSerializer.legacySection().deserialize(destServerOffline));
                 // if this happens it's 99% because the server admin fucked up and removed the default queue from the config
@@ -57,7 +57,7 @@ public class MatsuEventHandler {
                 // the server admin will figure it out eventually when they see all of our fuckass console spam.
                 return;
             }
-            if (!getPlugin().isDestinationServerOnline() || (queuePlayer.getQueueState() == State.LEFT && System.currentTimeMillis() - queuePlayer.getStateLastUpdated() < queuePlayer.getPunishmentSeconds() * 1000L)) {
+            if (!getPlugin().isDestinationServerOnline() || (queuePlayer.getQueueState() == State.LEFT && System.currentTimeMillis() - queuePlayer.getStateLastUpdated() < queuePlayer.getCachedPunishmentSeconds() * 1000L)) {
                 if (!getPlugin().isQueueServerOnline()) {
                     event.getPlayer().disconnect(LegacyComponentSerializer.legacySection().deserialize(queueServerOffline));
                     return;
@@ -95,7 +95,8 @@ public class MatsuEventHandler {
                                                 :
                                                 getPlugin().getConfigurator().getMatsuMessages().getNowOffline(getPlugin().getDestinationMatsuServer().getDisplayName())
                                         ,
-                                        queuePlayer.getCachedPositionInQueue()
+                                        queuePlayer.getCachedPositionInQueue(),
+                                        plugin.getQueue(queuePlayer.getCachedQueueKey()).getAverageTimeBetweenJoins()
                                 );
                         String footer = getPlugin()
                                 .getConfigurator()
@@ -107,9 +108,20 @@ public class MatsuEventHandler {
                                                 :
                                                 getPlugin().getConfigurator().getMatsuMessages().getNowOffline(getPlugin().getDestinationMatsuServer().getDisplayName())
                                         ,
-                                        queuePlayer.getCachedPositionInQueue()
+                                        queuePlayer.getCachedPositionInQueue(),
+                                        plugin.getQueue(queuePlayer.getCachedQueueKey()).getAverageTimeBetweenJoins()
                                 );
                         e.getPlayer().sendPlayerListHeaderAndFooter(LegacyComponentSerializer.legacySection().deserialize(header), LegacyComponentSerializer.legacySection().deserialize(footer));
+                        queuePlayer.cancelAnyTask();
+                        final String message = plugin.getConfigurator().getMatsuMessages().getEstimatedTime(plugin.getDestinationMatsuServer().getDisplayName(), queuePlayer.getCachedPositionInQueue(), plugin.getQueue(queuePlayer.getCachedQueueKey()).getAverageTimeBetweenJoins());
+                        plugin.getProxyServer().getScheduler().buildTask(plugin, (task) -> {
+                            if (!e.getPlayer().isActive()) {
+                                task.cancel();
+                                return;
+                            }
+                            queuePlayer.setActionBarTask(task);
+                            e.getPlayer().sendActionBar(LegacyComponentSerializer.legacySection().deserialize(message));
+                        }).repeat(1L, TimeUnit.SECONDS).schedule();
                     }
                     case PENDING -> {
                         boolean flag = !getPlugin().isDestinationServerOnline(); // if the server IS NOT online
@@ -128,7 +140,9 @@ public class MatsuEventHandler {
                                                 :
                                                 getPlugin().getConfigurator().getMatsuMessages().getNowOffline(getPlugin().getDestinationMatsuServer().getDisplayName())
                                         ,
-                                        queuePlayer.getCachedPositionInQueue()
+                                        queuePlayer.getCachedPositionInQueue(),
+                                        queuePlayer.getCachedPunishmentSeconds(),
+                                        false
                                 );
                         String footer = getPlugin()
                                 .getConfigurator()
@@ -140,9 +154,21 @@ public class MatsuEventHandler {
                                                 :
                                                 getPlugin().getConfigurator().getMatsuMessages().getNowOffline(getPlugin().getDestinationMatsuServer().getDisplayName())
                                         ,
-                                        queuePlayer.getCachedPositionInQueue()
+                                        queuePlayer.getCachedPositionInQueue(),
+                                        queuePlayer.getCachedPunishmentSeconds(),
+                                        false
                                 );
                         e.getPlayer().sendPlayerListHeaderAndFooter(LegacyComponentSerializer.legacySection().deserialize(header), LegacyComponentSerializer.legacySection().deserialize(footer));
+                        queuePlayer.cancelAnyTask();
+                        final String message = plugin.getConfigurator().getMatsuMessages().getEstimatedTime(plugin.getDestinationMatsuServer().getDisplayName(), queuePlayer.getCachedPositionInQueue(), queuePlayer.getCachedPunishmentSeconds(), false);
+                        plugin.getProxyServer().getScheduler().buildTask(plugin, (task) -> {
+                            if (!e.getPlayer().isActive()) {
+                                task.cancel();
+                                return;
+                            }
+                            queuePlayer.setActionBarTask(task);
+                            e.getPlayer().sendActionBar(LegacyComponentSerializer.legacySection().deserialize(message));
+                        }).repeat(1L, TimeUnit.SECONDS).schedule();
                     }
                 }
             }
@@ -154,6 +180,9 @@ public class MatsuEventHandler {
         // Sometimes velocity doesn't respect that we don't want to connect players to a fallback server on kick
         // even when we have failover-on-unexpected-server-disconnect set to false in the config.
         // we will just make sure they get kicked no matter what.
+
+        // without this, players could kick themselves using rusherhack nuker on "creative" setting,
+        // and for whatever fucking reason, velocity will just send them to the main server.
         e.getPlayer().disconnect(e.getServerKickReason().orElse(LegacyComponentSerializer.legacySection().deserialize(
                 getPlugin().getConfigurator().getMatsuMessages().getNowOffline(getPlugin().getQueueMatsuServer().getDisplayName())
         )));

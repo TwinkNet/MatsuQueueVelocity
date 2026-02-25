@@ -1,6 +1,8 @@
 package network.twink.matsuqueuevelocity.queue;
 
 import com.velocitypowered.api.proxy.Player;
+import net.kyori.adventure.sound.Sound;
+import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer;
 import network.twink.matsuqueuevelocity.MatsuQueuePlugin;
 import network.twink.matsuqueuevelocity.slot.SlotPool;
@@ -9,6 +11,7 @@ import network.twink.matsuqueuevelocity.util.MatsuMessages;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.LinkedBlockingDeque;
+import java.util.concurrent.TimeUnit;
 
 public class ServerQueue {
 
@@ -16,6 +19,9 @@ public class ServerQueue {
     private final int priority;
     private final String[] prioritisedSlots;
     private final int punishmentSeconds;
+    private final long[] averageTimeBetweenJoins = new long[30];
+    private int averageTimesCursor = 0;
+    private long lastJoinTime = -1L;
 
     private final LinkedBlockingDeque<QueuePlayer> queue = new  LinkedBlockingDeque<>();
 
@@ -27,6 +33,33 @@ public class ServerQueue {
         this.priority = priority;
         this.prioritisedSlots = prioritisedSlots;
         this.punishmentSeconds = punishmentSeconds;
+    }
+
+    public long getAverageTimeBetweenJoins() {
+        long sum = 0;
+        int counter = 0;
+        for (long averageTimeBetweenJoin : averageTimeBetweenJoins) {
+            if (averageTimeBetweenJoin < 0) continue;
+            counter++;
+            sum += averageTimeBetweenJoin;
+        }
+        if (counter <= 0) {
+            return -1L;
+        }
+        return sum / counter;
+    }
+
+    public void updateAverageTimeBetweenJoins() {
+        long millis = System.currentTimeMillis();
+        if (lastJoinTime == -1) {
+            lastJoinTime = millis;
+            return;
+        }
+        if (averageTimesCursor >= averageTimeBetweenJoins.length) {
+            averageTimesCursor = 0;
+        }
+        averageTimeBetweenJoins[averageTimesCursor++] = millis - lastJoinTime;
+        lastJoinTime = millis;
     }
 
     public String getName() {
@@ -70,6 +103,10 @@ public class ServerQueue {
 
     public void notifyAllQueueMembers(MatsuQueuePlugin plugin) {
         int count = 1;
+        if (queue.isEmpty()) {
+            this.lastJoinTime = -1L;
+            // this will run every 10 sec
+        }
         for (QueuePlayer queuePlayer : queue) {
             Optional<Player> optional = plugin.getProxyServer().getPlayer(queuePlayer.getUuid());
             if (optional.isEmpty()) {
@@ -91,7 +128,8 @@ public class ServerQueue {
                                     :
                                     plugin.getConfigurator().getMatsuMessages().getNowOffline(plugin.getDestinationMatsuServer().getDisplayName())
                             ,
-                            queuePlayer.getCachedPositionInQueue()
+                            queuePlayer.getCachedPositionInQueue(),
+                            this.getAverageTimeBetweenJoins()
                     );
             String footer = plugin
                     .getConfigurator()
@@ -103,9 +141,22 @@ public class ServerQueue {
                                     :
                                     plugin.getConfigurator().getMatsuMessages().getNowOffline(plugin.getDestinationMatsuServer().getDisplayName())
                             ,
-                            queuePlayer.getCachedPositionInQueue()
+                            queuePlayer.getCachedPositionInQueue(),
+                            this.getAverageTimeBetweenJoins()
                     );
             player.sendPlayerListHeaderAndFooter(LegacyComponentSerializer.legacySection().deserialize(header), LegacyComponentSerializer.legacySection().deserialize(footer));
+            final int[] counter = {0};
+            final String message = plugin.getConfigurator().getMatsuMessages().getEstimatedTime(plugin.getDestinationMatsuServer().getDisplayName(), queuePlayer.getCachedPositionInQueue(), getAverageTimeBetweenJoins());
+            queuePlayer.cancelAnyTask();
+            plugin.getProxyServer().getScheduler().buildTask(plugin, (task) -> {
+                if (!player.isActive() || counter[0] > 10) {
+                    task.cancel();
+                    return;
+                }
+                queuePlayer.setActionBarTask(task);
+                player.sendActionBar(LegacyComponentSerializer.legacySection().deserialize(message));
+                counter[0]++;
+            }).repeat(1L, TimeUnit.SECONDS).schedule();
             count++;
         }
     }
@@ -119,6 +170,7 @@ public class ServerQueue {
 
     public boolean enqueue(QueuePlayer queuePlayer) {
         queuePlayer.setLastKnownPosInQueue(queue.size() + 1); // this is important for the player tab list to work immediately
+        queuePlayer.setCachedQueueKey(this.getName());
         return queue.offer(queuePlayer);
     }
 
@@ -162,9 +214,12 @@ public class ServerQueue {
         final boolean flag = joinSlotPool(plugin, queuePlayer);
         MatsuMessages matsuMessages =  plugin.getConfigurator().getMatsuMessages();
         player.sendMessage(LegacyComponentSerializer.legacySection().deserialize(matsuMessages.getConnecting(plugin.getDestinationMatsuServer().getDisplayName())));
+        this.updateAverageTimeBetweenJoins();
         player.createConnectionRequest(plugin.getDestinationServer()).connect().thenAccept(result -> {
             if (result.isSuccessful() && flag) {
                 queuePlayer.setQueueState(State.PLAYING);
+                queuePlayer.cancelAnyTask();
+                player.sendActionBar(Component.empty());
             }
             else {
                 plugin.getLogger().error("{} could not be connected to the destination server, or couldn't be added to a player slot.", player.getGameProfile().getName());

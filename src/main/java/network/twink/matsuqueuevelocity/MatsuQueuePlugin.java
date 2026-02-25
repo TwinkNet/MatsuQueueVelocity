@@ -252,6 +252,12 @@ public class MatsuQueuePlugin {
         return queueMap.get("default").isServerFull(this) || queueMap.get("default").arePlayersQueued();
     }
 
+    public boolean isDestinationServerFull(QueuePlayer player) {
+        ServerQueue queue = queueMap.get(player.getCachedQueueKey());
+        if (queue == null) return true;
+        return queue.isServerFull(this) || queue.arePlayersQueued();
+    }
+
     /**
      * Detects the queue that the specified player belongs to and joins it.
      *
@@ -276,6 +282,23 @@ public class MatsuQueuePlugin {
         }
         getLogger().error("There isn't a queue named \"default\", and this is causing problems. Add a default queue to your config, or light the server on fire.");
         return false; // Someone forgot to configure a default server.
+    }
+
+    public boolean joinQueue(Player player, QueuePlayer queuePlayer) {
+        return joinQueue(player, queuePlayer, false);
+    }
+
+    public boolean joinQueue(QueuePlayer queuePlayer) {
+        ServerQueue serverQueue = queueMap.get(queuePlayer.getCachedQueueKey());
+        boolean flag = serverQueue == null || serverQueue.enqueue(queuePlayer);
+        if (!flag) {
+            getLogger().error("There isn't a queue named \"default\", and this is causing problems. Add a default queue to your config, or light the server on fire.");
+        }
+        return flag; // Someone forgot to configure a default server.
+    }
+
+    public ServerQueue getQueue(String name) {
+        return queueMap.get(name);
     }
 
     public ServerQueue getQueue(Player player, boolean forceDefault) {
@@ -329,9 +352,7 @@ public class MatsuQueuePlugin {
         return "\nerror\n";
     }
 
-    public boolean joinQueue(Player player, QueuePlayer queuePlayer) {
-        return joinQueue(player, queuePlayer, false);
-    }
+
 
     public boolean joinSlotPool(Player player, QueuePlayer queuePlayer, boolean forceDefault) {
         for (String s : queueMap.keySet()) {
@@ -353,5 +374,14 @@ public class MatsuQueuePlugin {
 
     public boolean joinSlotPool(Player player, QueuePlayer queuePlayer) {
         return joinSlotPool(player, queuePlayer, false);
+    }
+
+    public boolean joinSlotPool(QueuePlayer queuePlayer) {
+        ServerQueue serverQueue = queueMap.get(queuePlayer.getCachedQueueKey());
+        boolean flag = serverQueue == null || serverQueue.joinSlotPool(this, queuePlayer);
+        if (!flag) {
+            getLogger().error("There isn't a queue named \"default\", and this is causing problems. Add a default queue to your config, or light the server on fire.");
+        }
+        return flag;
     }
 }
