@@ -1,6 +1,7 @@
 package network.twink.matsuqueuevelocity;
 
 import network.twink.matsuqueuevelocity.queue.ServerQueue;
+import network.twink.matsuqueuevelocity.server.MatsuDestinationServer;
 import network.twink.matsuqueuevelocity.server.MatsuServer;
 import network.twink.matsuqueuevelocity.slot.SlotPool;
 import network.twink.matsuqueuevelocity.util.MatsuMessages;
@@ -46,21 +47,31 @@ public class MatsuConfigurator {
 
         plugin.setRootPermission(parser.getString("root-permission"));
         plugin.setQueueServer(new MatsuServer(parser.getString("queue-server.velocity-name"), parser.getString("queue-server.display-name")));
-        plugin.setDestinationServer(new MatsuServer(parser.getString("destination-server.velocity-name"), parser.getString("destination-server.display-name")));
-        ConfigSection queueSection = parser.getSection("queues");
-        ConfigSection slotSection = parser.getSection("slots");
-        for (String key : slotSection.getKeys(false)) {
-            SlotPool pool = new SlotPool(key, slotSection.getInt(key + ".capacity", -1));
-            plugin.registerSlotPool(pool);
+        // plugin.setDestinationServer(new MatsuServer(parser.getString("destination-server.velocity-name"), parser.getString("destination-server.display-name")));
+        ConfigSection destinationServers = parser.getSection("destination-servers");
+        for (String destVelName : destinationServers.getKeys(false)) {
+            MatsuDestinationServer destinationServer = new MatsuDestinationServer(destVelName, destinationServers.getString(destVelName + ".display-name"));
+            ConfigSection queueSection = destinationServers.getSection(destVelName + ".queues");
+            ConfigSection slotSection = destinationServers.getSection(destVelName + ".slots");
+            for (String key : slotSection.getKeys(false)) {
+                SlotPool pool = new SlotPool(key, slotSection.getInt(key + ".capacity", -1));
+                destinationServer.registerSlotPool(destVelName, pool);
+                plugin.getLogger().warn("Registering slot pool {} with {} player slots", pool.getName(), pool.getCapacity());
+            }
+            for (String queueName : queueSection.getKeys(false)) {
+                List<String> prioSlots = queueSection.getStringList(queueName + ".slots");
+                int punishmentSeconds = queueSection.getInt(queueName + ".reconnect-cooldown", 22);
+                ServerQueue queue = new ServerQueue(queueName, destVelName, queueSection.getInt(queueName + ".priority"), prioSlots.toArray(new String[0]), punishmentSeconds);
+                queue.setTabHeaderTemplate(queueSection.getString(queueName + ".tab-header", "Config Error").replace("\\n", "\n"));
+                queue.setTabFooterTemplate(queueSection.getString(queueName + ".tab-footer", "Config Error").replace("\\n", "\n"));
+                destinationServer.registerQueue(destVelName, queue);
+                plugin.getLogger().warn("Registering queue {} with {} priority", queue.getName(), queue.getPriority());
+            }
         }
-        for (String queueName : queueSection.getKeys(false)) {
-            List<String> prioSlots = queueSection.getStringList(queueName + ".slots");
-            int punishmentSeconds = queueSection.getInt(queueName + ".reconnect-cooldown", 22);
-            ServerQueue queue = new ServerQueue(queueName, queueSection.getInt(queueName + ".priority"), prioSlots.toArray(new String[0]), punishmentSeconds);
-            queue.setTabHeaderTemplate(queueSection.getString(queueName + ".tab-header", "Config Error").replace("\\n", "\n"));
-            queue.setTabFooterTemplate(queueSection.getString(queueName + ".tab-footer", "Config Error").replace("\\n", "\n"));
-            plugin.registerQueue(queue);
-        }
+
+
+
+
     }
 
     public MatsuMessages getMatsuMessages() {

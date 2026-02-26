@@ -1,10 +1,10 @@
 package network.twink.matsuqueuevelocity.queue;
 
 import com.velocitypowered.api.proxy.Player;
-import net.kyori.adventure.sound.Sound;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer;
 import network.twink.matsuqueuevelocity.MatsuQueuePlugin;
+import network.twink.matsuqueuevelocity.server.MatsuDestinationServer;
 import network.twink.matsuqueuevelocity.slot.SlotPool;
 import network.twink.matsuqueuevelocity.util.MatsuMessages;
 
@@ -16,6 +16,7 @@ import java.util.concurrent.TimeUnit;
 public class ServerQueue {
 
     private final String name;
+    private final String destKey;
     private final int priority;
     private final String[] prioritisedSlots;
     private final int punishmentSeconds;
@@ -23,13 +24,14 @@ public class ServerQueue {
     private int averageTimesCursor = 0;
     private long lastJoinTime = -1L;
 
-    private final LinkedBlockingDeque<QueuePlayer> queue = new  LinkedBlockingDeque<>();
+    private final LinkedBlockingDeque<QueuePlayer> queue = new LinkedBlockingDeque<>();
 
     private String tabHeader;
     private String tabFooter;
 
-    public ServerQueue(String name, int priority, String[] prioritisedSlots, int punishmentSeconds) {
+    public ServerQueue(String name, String destKey, int priority, String[] prioritisedSlots, int punishmentSeconds) {
         this.name = name;
+        this.destKey = destKey;
         this.priority = priority;
         this.prioritisedSlots = prioritisedSlots;
         this.punishmentSeconds = punishmentSeconds;
@@ -115,18 +117,19 @@ public class ServerQueue {
                 continue;
             }
             Player player = optional.get();
-            player.sendMessage(LegacyComponentSerializer.legacySection().deserialize(plugin.getConfigurator().getMatsuMessages().getPositionInQueue(plugin.getDestinationMatsuServer().getDisplayName(), count)));
+            MatsuDestinationServer destinationServer = queuePlayer.getDestinationMatsuServer(plugin);
+            player.sendMessage(LegacyComponentSerializer.legacySection().deserialize(plugin.getConfigurator().getMatsuMessages().getPositionInQueue(destinationServer.getDisplayName(), count)));
             queuePlayer.setLastKnownPosInQueue(count);
-            boolean flag = !plugin.isDestinationServerOnline(); // if the server IS NOT online
+            boolean flag = !destinationServer.isOnline(); // if the server IS NOT online
             String header = plugin
                     .getConfigurator()
                     .getMatsuMessages()
                     .formatTabListMessage(
-                            plugin.getTabHeaderTemplateForPlayer(player),
+                            plugin.getTabHeaderTemplateForPlayer(queuePlayer),
                             !flag ?  // If the server IS online
-                                    plugin.getConfigurator().getMatsuMessages().getNowQueued(plugin.getDestinationMatsuServer().getDisplayName())
+                                    plugin.getConfigurator().getMatsuMessages().getNowQueued(destinationServer.getDisplayName())
                                     :
-                                    plugin.getConfigurator().getMatsuMessages().getNowOffline(plugin.getDestinationMatsuServer().getDisplayName())
+                                    plugin.getConfigurator().getMatsuMessages().getNowOffline(destinationServer.getDisplayName())
                             ,
                             queuePlayer.getCachedPositionInQueue(),
                             this.getAverageTimeBetweenJoins()
@@ -135,18 +138,18 @@ public class ServerQueue {
                     .getConfigurator()
                     .getMatsuMessages()
                     .formatTabListMessage(
-                            plugin.getTabFooterTemplateForPlayer(player),
+                            plugin.getTabFooterTemplateForPlayer(queuePlayer),
                             !flag ? // If the server IS online
-                                    plugin.getConfigurator().getMatsuMessages().getNowQueued(plugin.getDestinationMatsuServer().getDisplayName())
+                                    plugin.getConfigurator().getMatsuMessages().getNowQueued(destinationServer.getDisplayName())
                                     :
-                                    plugin.getConfigurator().getMatsuMessages().getNowOffline(plugin.getDestinationMatsuServer().getDisplayName())
+                                    plugin.getConfigurator().getMatsuMessages().getNowOffline(destinationServer.getDisplayName())
                             ,
                             queuePlayer.getCachedPositionInQueue(),
                             this.getAverageTimeBetweenJoins()
                     );
             player.sendPlayerListHeaderAndFooter(LegacyComponentSerializer.legacySection().deserialize(header), LegacyComponentSerializer.legacySection().deserialize(footer));
             final int[] counter = {0};
-            final String message = plugin.getConfigurator().getMatsuMessages().getEstimatedTime(plugin.getDestinationMatsuServer().getDisplayName(), queuePlayer.getCachedPositionInQueue(), getAverageTimeBetweenJoins());
+            final String message = plugin.getConfigurator().getMatsuMessages().getEstimatedTime(destinationServer.getDisplayName(), queuePlayer.getCachedPositionInQueue(), getAverageTimeBetweenJoins());
             queuePlayer.cancelAnyTask();
             plugin.getProxyServer().getScheduler().buildTask(plugin, (task) -> {
                 if (!player.isActive() || counter[0] > 10) {
@@ -188,16 +191,16 @@ public class ServerQueue {
 
     /**
      * Attempts to connect the first player in queue to the destination server.
-     *
+     * <p>
      * If the destination server is offline, the queue is empty, or if the server is considered full to players in this queue, it will return false
      * The method will pop the QueuePlayer and attempt to find the Player within the proxy server,
      * if the Player is not found (ex. they left the server and didn't get cleaned up),
      * the method will call itself to process the next player in queue.
-     *
+     * <p>
      * If all is well, the player will be sent to the destination server.
      * If the player joins the destination server and successfully occupies a player slot,
      * their state will be set to PLAYING.
-     *
+     * <p>
      * If anything failed, they will be kicked from the server.
      *
      * @param plugin The MatsuQueuePlugin
@@ -205,31 +208,33 @@ public class ServerQueue {
      * this will return true even if the player was kicked for other reasons.
      */
     public boolean connectFirstIfPossible(MatsuQueuePlugin plugin) {
-        if (!plugin.isDestinationServerOnline() || queue.isEmpty() || isServerFull(plugin)) return false;
+        if (queue.isEmpty() || isServerFull(plugin)) return false;
+        if (!queue.element().getDestinationMatsuServer(plugin).isOnline()) return false;
         QueuePlayer queuePlayer = queue.pop();
+        MatsuDestinationServer dest = queuePlayer.getDestinationMatsuServer(plugin);
+        if (!dest.getVelocityName().equals(destKey)) return false;
         Optional<Player> optional = plugin.getProxyServer().getPlayer(queuePlayer.getUuid());
         if (optional.isEmpty()) return connectFirstIfPossible(plugin);
         Player player = optional.get();
         if (player.getCurrentServer().isEmpty()) return connectFirstIfPossible(plugin);
         final boolean flag = joinSlotPool(plugin, queuePlayer);
-        MatsuMessages matsuMessages =  plugin.getConfigurator().getMatsuMessages();
-        player.sendMessage(LegacyComponentSerializer.legacySection().deserialize(matsuMessages.getConnecting(plugin.getDestinationMatsuServer().getDisplayName())));
+        MatsuMessages matsuMessages = plugin.getConfigurator().getMatsuMessages();
+        player.sendMessage(LegacyComponentSerializer.legacySection().deserialize(matsuMessages.getConnecting(dest.getDisplayName())));
         this.updateAverageTimeBetweenJoins();
-        player.createConnectionRequest(plugin.getDestinationServer()).connect().thenAccept(result -> {
+        player.createConnectionRequest(dest.getServer(plugin)).connect().thenAccept(result -> {
             if (result.isSuccessful() && flag) {
                 queuePlayer.setQueueState(State.PLAYING);
                 queuePlayer.cancelAnyTask();
                 player.sendActionBar(Component.empty());
-            }
-            else {
+            } else {
                 plugin.getLogger().error("{} could not be connected to the destination server, or couldn't be added to a player slot.", player.getGameProfile().getName());
                 player.disconnect(LegacyComponentSerializer.legacySection()
-                        .deserialize(plugin.getConfigurator().getMatsuMessages().getNowOffline(plugin.getDestinationMatsuServer().getDisplayName())));
+                        .deserialize(plugin.getConfigurator().getMatsuMessages().getNowOffline(dest.getDisplayName())));
             }
         }).exceptionally(e -> {
             plugin.getLogger().error("{} could not be connected to the destination server, or couldn't be added to a player slot.", player.getGameProfile().getName());
             player.disconnect(LegacyComponentSerializer.legacySection()
-                    .deserialize(plugin.getConfigurator().getMatsuMessages().getNowOffline(plugin.getDestinationMatsuServer().getDisplayName())));
+                    .deserialize(plugin.getConfigurator().getMatsuMessages().getNowOffline(dest.getDisplayName())));
             return null;
         });
         return true;
@@ -237,7 +242,7 @@ public class ServerQueue {
 
     public boolean joinSlotPool(MatsuQueuePlugin plugin, QueuePlayer queuePlayer) {
         for (String prioritisedSlot : prioritisedSlots) {
-            SlotPool pool = plugin.getSlotPool(prioritisedSlot);
+            SlotPool pool = plugin.getSlotPool(destKey, prioritisedSlot);
             if (!pool.isFull()) {
                 pool.addPlayer(queuePlayer);
                 return true;
@@ -253,7 +258,7 @@ public class ServerQueue {
     public boolean isServerFull(MatsuQueuePlugin plugin) {
         boolean full = true;
         for (String prioritisedSlot : prioritisedSlots) {
-            full = plugin.getSlotPool(prioritisedSlot).isFull();
+            full = plugin.getSlotPool(destKey, prioritisedSlot).isFull();
         }
         return full;
     }

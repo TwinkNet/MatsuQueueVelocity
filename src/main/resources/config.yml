@@ -1,9 +1,76 @@
 queue-server:
   velocity-name: queue
   display-name: Queue
-destination-server:
-  velocity-name: main
-  display-name: 2b2t
+destination-servers:
+  main:
+    display-name: 2b2t
+    slots:
+      standard:
+        capacity: 150
+      priority:
+        capacity: 50
+      operator:
+        capacity: 10
+    queues:
+      default:
+        priority: 0
+        reconnect-cooldown: 22
+        tab-header: "\\n§42builders§32tools\\n\\n§6{status}\\n§6Position in queue: §l{pos}\\n§6Estimated time: §l{eta}\\n"
+        tab-footer: "\\n§6This account does not have priority queue status\\n"
+        slots: # Sorted by priority
+          - "standard"
+      priority:
+        priority: 1
+        reconnect-cooldown: 15
+        tab-header: "\\n§42builders§32tools\\n\\n§6{status}\\n§6Position in queue: §l{pos}\\n§6Estimated time: §l{eta}\\n"
+        tab-footer: "\\n§6This account has priority queue status and will be placed in a faster queue\\n"
+        slots: # Sorted by priority
+          - "priority"
+          - "standard"
+      operator:
+        priority: 2
+        reconnect-cooldown: 5
+        tab-header: "\\n§42builders§32tools\\n\\n§6{status}\\n§6Position in queue: §l{pos}\\n§6Estimated time: §l{eta}\\n"
+        tab-footer: "\\n§6This account has operator status and will be placed in the fastest queue\\n"
+        slots: # Sorted by priority
+          - "standard"
+          - "priority"
+          - "operator"
+  test:
+    display-name: test
+    slots:
+      standard:
+        capacity: 150
+      priority:
+        capacity: 50
+      operator:
+        capacity: 10
+    queues:
+      default:
+        priority: 0
+        reconnect-cooldown: 22
+        tab-header: "\\n§42builders§32tools §7Test Server\\n\\n§6{status}\\n§6Position in queue: §l{pos}\\n§6Estimated time: §l{eta}\\n"
+        tab-footer: "\\n§6This account does not have priority queue status\\n"
+        slots: # Sorted by priority
+          - "standard"
+      priority:
+        priority: 1
+        reconnect-cooldown: 15
+        tab-header: "\\n§42builders§32tools §7Test Server\\n\\n§6{status}\\n§6Position in queue: §l{pos}\\n§6Estimated time: §l{eta}\\n"
+        tab-footer: "\\n§6This account has priority queue status and will be placed in a faster queue\\n"
+        slots: # Sorted by priority
+          - "priority"
+          - "standard"
+      operator:
+        priority: 2
+        reconnect-cooldown: 5
+        tab-header: "\\n§42builders§32tools §7Test Server\\n\\n§6{status}\\n§6Position in queue: §l{pos}\\n§6Estimated time: §l{eta}\\n"
+        tab-footer: "\\n§6This account has operator status and will be placed in the fastest queue\\n"
+        slots: # Sorted by priority
+          - "standard"
+          - "priority"
+          - "operator"
+
 root-permission: "matsu.queue"
 
 status:
@@ -15,36 +82,3 @@ status:
   waiting-connection: "§6Waiting to connect to {server}..."
   estimated-time: "§6Estimated time: §l{eta}"
 
-slots:
-  standard:
-    capacity: 150
-  priority:
-    capacity: 50
-  operator:
-    capacity: 10
-
-queues:
-  default:
-    priority: 0
-    reconnect-cooldown: 22
-    tab-header: "\\n§42builders§32tools\\n\\n§6{status}\\n§6Position in queue: §l{pos}\\n§6Estimated time: §l{eta}\\n"
-    tab-footer: "\\n§6This account does not have priority queue status\\n"
-    slots: # Sorted by priority
-      - "standard"
-  priority:
-    priority: 1
-    reconnect-cooldown: 15
-    tab-header: "\\n§42builders§32tools\\n\\n§6{status}\\n§6Position in queue: §l{pos}\\n§6Estimated time: §l{eta}\\n"
-    tab-footer: "\\n§6This account has priority queue status and will be placed in a faster queue\\n"
-    slots: # Sorted by priority
-      - "priority"
-      - "standard"
-  operator:
-    priority: 2
-    reconnect-cooldown: 5
-    tab-header: "\\n§42builders§32tools\\n\\n§6{status}\\n§6Position in queue: §l{pos}\\n§6Estimated time: §l{eta}\\n"
-    tab-footer: "\\n§6This account has operator status and will be placed in the fastest queue\\n"
-    slots: # Sorted by priority
-      - "standard"
-      - "priority"
-      - "operator"
