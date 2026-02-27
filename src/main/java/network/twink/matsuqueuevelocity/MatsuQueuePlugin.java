@@ -52,7 +52,6 @@ public class MatsuQueuePlugin {
 
     @Subscribe
     public void onProxyInitialization(ProxyInitializeEvent event) {
-        logger.info("MatsuQueuePlugin has been initialized");
         try {
             configurator = new MatsuConfigurator(this);
             this.updateDestinationServersOnlineStatus();
@@ -80,6 +79,7 @@ public class MatsuQueuePlugin {
 
         SimpleCommand command = new QueueCommand(this);
         commandManager.register(meta, command);
+        logger.info("MatsuQueuePlugin has been initialized");
     }
 
     private void runQueueTick() {
