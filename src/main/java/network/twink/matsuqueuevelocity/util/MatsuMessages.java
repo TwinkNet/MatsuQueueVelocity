@@ -28,7 +28,7 @@ public class MatsuMessages {
     public String getPositionInQueue(String server, int pos) { return baseFormat(positionInQueue, server, null, pos, 0, false); }
 
     public void setTabAltPositionInQueue(String s) { this.tabAltPositionInQueue = s; }
-    public String getTabAltPositionInQueue(String server, int pos) { return pos < 0 ? "" : tabAltPositionInQueue; }
+    public String getTabAltPositionInQueue(int pos) { return pos < 0 ? "" : tabAltPositionInQueue; }
 
     public void setConnecting(String s) { this.connecting = s; }
     public String getConnecting(String server) { return baseFormat(connecting, server, null, -1, 0, false); }
@@ -62,7 +62,7 @@ public class MatsuMessages {
         String etaStr = (timeValue > 0) ? formatTime(seconds) : "...";
         String posStr = (pos > 0) ? String.valueOf(pos) : "...";
 
-        String result = template.replace("{alt-pos}", getTabAltPositionInQueue(server, pos)).replace("{pos}", posStr).replace("{eta}", etaStr);
+        String result = template.replace("{alt-pos}", getTabAltPositionInQueue(pos)).replace("{pos}", posStr).replace("{eta}", etaStr);
         if (server != null) result = result.replace("{server}", server);
         if (status != null) result = result.replace("{status}", status);
 

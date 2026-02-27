@@ -74,6 +74,16 @@ public class QueueCommand implements SimpleCommand {
                             player.sendMessage(MatsuQueuePlugin.msg(messages.getConnecting(destinationServer.getDisplayName())));
                             handleDirectEntry(player, queuePlayer, destinationServer, destinationOfflineText);
                         }
+                        return;
+                    }
+                    player.sendMessage(MatsuQueuePlugin.msg("\2476Server " + destinationServerKey + " does not exist."));
+                    String[] keys = plugin.getDestinationServerKeys();
+                    if (keys.length > 0) {
+                        StringBuilder sb = new StringBuilder("\2476Valid servers: " + keys[0]);
+                        for (int i = 1; i < keys.length; i++) {
+                            sb.append(", ").append(keys[i]);
+                        }
+                        player.sendMessage(MatsuQueuePlugin.msg(sb.toString()));
                     }
                 }
             }
