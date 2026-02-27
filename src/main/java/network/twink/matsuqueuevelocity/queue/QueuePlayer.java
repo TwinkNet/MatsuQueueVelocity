@@ -11,7 +11,7 @@ import java.util.UUID;
 
 public class QueuePlayer {
 
-    private UUID uuid;
+    private final UUID uuid;
     private State queueState;
     private long stateLastUpdated;
     private int lastKnownPosInQueue = -1;
@@ -35,11 +35,11 @@ public class QueuePlayer {
 
     public QueuePlayer(MatsuQueuePlugin plugin, Player player, String destinationServerKey) {
         this.uuid = player.getUniqueId();
+        this.destinationServerKey = destinationServerKey;
         this.queueState = State.IDLE;
         this.stateLastUpdated = System.currentTimeMillis();
         this.cachedQueueKey = plugin.getQueue(this, false).getName();
         this.cachedPunishmentSeconds = plugin.getQueue(this, false).getPunishmentSeconds();
-        this.destinationServerKey = destinationServerKey;
     }
     public QueuePlayer(MatsuQueuePlugin plugin, Player player, MatsuServer destinationServer) {
         this(plugin, player, destinationServer.getVelocityName());
@@ -104,7 +104,7 @@ public class QueuePlayer {
     }
 
     public MatsuDestinationServer getDestinationMatsuServer(MatsuQueuePlugin plugin) {
-        return plugin.getDestinationMatsuServer(getDestinationServerKey());
+        return plugin.getDestServer(getDestinationServerKey());
     }
 
     public Player getPlayer(MatsuQueuePlugin plugin) {

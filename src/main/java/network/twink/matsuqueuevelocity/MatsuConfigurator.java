@@ -21,7 +21,7 @@ public class MatsuConfigurator {
     private MatsuMessages matsuMessages;
 
     public MatsuConfigurator(MatsuQueuePlugin plugin) throws IOException {
-        File dir = plugin.getDataDirectoryFile();
+        File dir = plugin.getDataDirectory().toFile();
         if (!dir.exists()) {
             dir.mkdir();
         }
@@ -37,6 +37,8 @@ public class MatsuConfigurator {
         this.matsuMessages = new MatsuMessages();
         YMLParser parser = new YMLParser(file);
 
+
+
         matsuMessages.setConnecting(parser.getString("status.connecting").replace("\\n", "\n"));
         matsuMessages.setPendingConnection(parser.getString("status.pending-connection").replace("\\n", "\n"));
         matsuMessages.setWaitingConnection(parser.getString("status.waiting-connection").replace("\\n", "\n"));
@@ -44,34 +46,40 @@ public class MatsuConfigurator {
         matsuMessages.setNowOffline(parser.getString("status.now-offline").replace("\\n", "\n"));
         matsuMessages.setNowQueued(parser.getString("status.now-queued").replace("\\n", "\n"));
         matsuMessages.setEstimatedTime(parser.getString("status.estimated-time").replace("\\n", "\n"));
+        matsuMessages.setQueuedCommandConfirmation(parser.getString("status.queued-command-confirmation").replace("\\n", "\n"));
+        matsuMessages.setAlreadyQueuedCommandConfirmation(parser.getString("status.already-queued-command-confirmation").replace("\\n", "\n"));
+        matsuMessages.setAlreadyConnectedCommandConfirmation(parser.getString("status.already-connected-command-confirmation").replace("\\n", "\n"));
+        matsuMessages.setInternalError(parser.getString("status.internal-error").replace("\\n", "\n"));
+        matsuMessages.setTabAltPositionInQueue(parser.getString("status.alternate-pos-in-queue").replace("\\n", "\n"));
 
         plugin.setRootPermission(parser.getString("root-permission"));
         plugin.setQueueServer(new MatsuServer(parser.getString("queue-server.velocity-name"), parser.getString("queue-server.display-name")));
-        // plugin.setDestinationServer(new MatsuServer(parser.getString("destination-server.velocity-name"), parser.getString("destination-server.display-name")));
         ConfigSection destinationServers = parser.getSection("destination-servers");
         for (String destVelName : destinationServers.getKeys(false)) {
-            MatsuDestinationServer destinationServer = new MatsuDestinationServer(destVelName, destinationServers.getString(destVelName + ".display-name"));
+            var server = plugin.getProxyServer().getServer(destVelName);
+            if (server.isEmpty()) {
+                plugin.getLogger().warn("Destination server '{}' is not configured in velocity.toml, skipping", destVelName);
+                continue;
+            }
+            MatsuDestinationServer destinationServer = new MatsuDestinationServer(destVelName, destinationServers.getString(destVelName + ".display-name", destVelName));
             ConfigSection queueSection = destinationServers.getSection(destVelName + ".queues");
             ConfigSection slotSection = destinationServers.getSection(destVelName + ".slots");
             for (String key : slotSection.getKeys(false)) {
                 SlotPool pool = new SlotPool(key, slotSection.getInt(key + ".capacity", -1));
                 destinationServer.registerSlotPool(destVelName, pool);
-                plugin.getLogger().warn("Registering slot pool {} with {} player slots", pool.getName(), pool.getCapacity());
+                plugin.getLogger().warn("Registering slot pool {} with {} player slots for server {}", pool.getName(), pool.getCapacity(), destVelName);
             }
             for (String queueName : queueSection.getKeys(false)) {
                 List<String> prioSlots = queueSection.getStringList(queueName + ".slots");
                 int punishmentSeconds = queueSection.getInt(queueName + ".reconnect-cooldown", 22);
-                ServerQueue queue = new ServerQueue(queueName, destVelName, queueSection.getInt(queueName + ".priority"), prioSlots.toArray(new String[0]), punishmentSeconds);
+                ServerQueue queue = new ServerQueue(queueName, queueSection.getInt(queueName + ".priority"), prioSlots.toArray(new String[0]), punishmentSeconds);
                 queue.setTabHeaderTemplate(queueSection.getString(queueName + ".tab-header", "Config Error").replace("\\n", "\n"));
                 queue.setTabFooterTemplate(queueSection.getString(queueName + ".tab-footer", "Config Error").replace("\\n", "\n"));
                 destinationServer.registerQueue(destVelName, queue);
-                plugin.getLogger().warn("Registering queue {} with {} priority", queue.getName(), queue.getPriority());
+                plugin.getLogger().warn("Registering queue {} with {} priority for server {}", queue.getName(), queue.getPriority(), destVelName);
             }
+            plugin.registerDestinationServer(destinationServer);
         }
-
-
-
-
     }
 
     public MatsuMessages getMatsuMessages() {

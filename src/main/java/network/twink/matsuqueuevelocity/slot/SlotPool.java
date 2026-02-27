@@ -6,6 +6,7 @@ import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer;
 import network.twink.matsuqueuevelocity.MatsuQueuePlugin;
 import network.twink.matsuqueuevelocity.queue.QueuePlayer;
+import network.twink.matsuqueuevelocity.queue.ServerQueue;
 import network.twink.matsuqueuevelocity.queue.State;
 import network.twink.matsuqueuevelocity.server.MatsuDestinationServer;
 import network.twink.matsuqueuevelocity.util.MatsuMessages;
@@ -13,6 +14,7 @@ import network.twink.matsuqueuevelocity.util.MatsuMessages;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.TimeUnit;
 
 public class SlotPool {
 
@@ -35,28 +37,49 @@ public class SlotPool {
         this.fill = new ConcurrentHashMap<>();
     }
 
+    private void sendPendingUpdate(MatsuQueuePlugin plugin, Player player, QueuePlayer qp) {
+        MatsuMessages msgs = plugin.getConfigurator().getMatsuMessages();
+        MatsuDestinationServer dest = qp.getDestinationMatsuServer(plugin);
+        ServerQueue queue = plugin.getQueue(qp, false);
+        boolean isOnline = dest.isOnline();
+        long avgTime = qp.getCachedPunishmentSeconds();
+        // chat notif
+        player.sendMessage(MatsuQueuePlugin.msg(msgs.getPendingConnection(dest.getDisplayName())));
+        // tab
+        String status = isOnline ? msgs.getWaitingConnection(dest.getDisplayName()) : msgs.getNowOffline(dest.getDisplayName());
+        String header = msgs.formatTabListMessage(queue.getTabHeaderTemplate(), status, -1, avgTime, false);
+        String footer = msgs.formatTabListMessage(queue.getTabFooterTemplate(), status, -1, avgTime, false);
+        player.sendPlayerListHeaderAndFooter(MatsuQueuePlugin.msg(header), MatsuQueuePlugin.msg(footer));
+        // action bar eta
+        qp.cancelAnyTask();
+        final String actionMsg = msgs.getEstimatedTime(dest.getDisplayName(), -1, avgTime, false);
+        plugin.getProxyServer().getScheduler().buildTask(plugin, (task) -> {
+            qp.setActionBarTask(task);
+            if (!player.isActive()) {
+                task.cancel();
+                return;
+            }
+            player.sendActionBar(MatsuQueuePlugin.msg(actionMsg));
+        }).repeat(1L, TimeUnit.SECONDS).schedule();
+    }
+
     public void notifyAnyPending(MatsuQueuePlugin plugin) {
         fill.keySet().forEach(uuid -> {
             QueuePlayer queuePlayer = fill.get(uuid);
-            MatsuDestinationServer destinationServer = queuePlayer.getDestinationMatsuServer(plugin);
             if (queuePlayer.getQueueState() == State.PENDING) {
-
                 Optional<Player> optional = plugin.getProxyServer().getPlayer(queuePlayer.getUuid());
                 if (optional.isEmpty()) return;
                 Player player = optional.get();
                 if (player.getCurrentServer().isEmpty()) return;
-
-                MatsuMessages matsuMessages = plugin.getConfigurator().getMatsuMessages();
-                player.sendMessage(LegacyComponentSerializer.legacySection().deserialize(
-                        matsuMessages.getPendingConnection(destinationServer.getDisplayName())
-                ));
+                sendPendingUpdate(plugin, player, queuePlayer);
             } else if (queuePlayer.getQueueState() == State.PLAYING) {
                 Optional<Player> optional = plugin.getProxyServer().getPlayer(queuePlayer.getUuid());
                 if (optional.isEmpty()) return;
                 Player player = optional.get();
                 Optional<ServerConnection> connection = player.getCurrentServer();
                 if (connection.isEmpty()) return;
-                if (connection.get().getServerInfo().getName().equals(plugin.getQueueServer().getServerInfo().getName())) {
+                if (connection.get().getServerInfo().getName().equals(plugin.getQueueMatsuServer().getVelocityName())) {
+                    MatsuDestinationServer destinationServer = queuePlayer.getDestinationMatsuServer(plugin);
                     player.disconnect(LegacyComponentSerializer.legacySection()
                             .deserialize(plugin.getConfigurator().getMatsuMessages().getNowOffline(destinationServer.getDisplayName())));
                 }

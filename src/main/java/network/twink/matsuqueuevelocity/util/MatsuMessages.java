@@ -2,149 +2,93 @@ package network.twink.matsuqueuevelocity.util;
 
 public class MatsuMessages {
 
-    private String nowQueued;
-    private String nowOffline;
-    private String positionInQueue;
-    private String connecting;
-    private String pendingConnection;
-    private String waitingConnection;
-    private String estimatedTime;
+    private String nowQueued, nowOffline, positionInQueue, connecting, pendingConnection,
+            waitingConnection, estimatedTime, queuedCommandConfirmation, alreadyQueuedCommandConfirmation,
+            alreadyConnectedCommandConfirmation, internalError, tabAltPositionInQueue;
 
-    public String getEstimatedTime(String serverName, int positionInQueue, long avgTimeBetweenJoins, boolean doMagic) {
-        return format(this.estimatedTime, serverName, positionInQueue, avgTimeBetweenJoins, doMagic);
+    public void setNowQueued(String s) { this.nowQueued = s; }
+    public String getNowQueued(String server) { return baseFormat(nowQueued, server, null, -1, 0, false); }
+
+    public void setQueuedCommandConfirmation(String s) { this.queuedCommandConfirmation = s; }
+    public String getQueuedCommandConfirmation(String server) { return baseFormat(queuedCommandConfirmation, server, null, -1, 0, false); }
+
+    public void setAlreadyQueuedCommandConfirmation(String s) { this.alreadyQueuedCommandConfirmation = s; }
+    public String getAlreadyQueuedCommandConfirmation(String server) { return baseFormat(alreadyQueuedCommandConfirmation, server, null, -1, 0, false); }
+
+    public void setAlreadyConnectedCommandConfirmation(String s) { this.alreadyConnectedCommandConfirmation = s; }
+    public String getAlreadyConnectedCommandConfirmation(String server) { return baseFormat(alreadyConnectedCommandConfirmation, server, null, -1, 0, false); }
+
+    public void setInternalError(String s) { this.internalError = s; }
+    public String getInternalError() { return baseFormat(internalError, null, null, -1, 0, false); }
+
+    public void setNowOffline(String s) { this.nowOffline = s; }
+    public String getNowOffline(String server) { return baseFormat(nowOffline, server, null, -1, 0, false); }
+
+    public void setPositionInQueue(String s) { this.positionInQueue = s; }
+    public String getPositionInQueue(String server, int pos) { return baseFormat(positionInQueue, server, null, pos, 0, false); }
+
+    public void setTabAltPositionInQueue(String s) { this.tabAltPositionInQueue = s; }
+    public String getTabAltPositionInQueue(int pos) { return pos < 0 ? "" : tabAltPositionInQueue; }
+
+    public void setConnecting(String s) { this.connecting = s; }
+    public String getConnecting(String server) { return baseFormat(connecting, server, null, -1, 0, false); }
+
+    public void setPendingConnection(String s) { this.pendingConnection = s; }
+    public String getPendingConnection(String server) { return baseFormat(pendingConnection, server, null, -1, 0, false); }
+
+    public void setWaitingConnection(String s) { this.waitingConnection = s; }
+    public String getWaitingConnection(String server) { return baseFormat(waitingConnection, server, null, -1, 0, false); }
+
+    public void setEstimatedTime(String s) { this.estimatedTime = s; }
+    public String getEstimatedTime(String server, int pos, long avgTime, boolean doMagic) {
+        return baseFormat(estimatedTime, server, null, pos, avgTime, doMagic);
+    }
+    public String getEstimatedTime(String server, int pos, long avgTime) {
+        return getEstimatedTime(server, pos, avgTime, true);
     }
 
-    public String getEstimatedTime(String serverName, int positionInQueue, long avgTimeBetweenJoins) {
-        return format(this.estimatedTime, serverName, positionInQueue, avgTimeBetweenJoins, true);
+    public String formatTabListMessage(String template, String status, int pos, long avgTime, boolean doMagic) {
+        return baseFormat(template, null, status, pos, avgTime, doMagic);
     }
 
-    public void setEstimatedTime(String estimatedTime) {
-        this.estimatedTime = estimatedTime;
+    public String formatTabListMessage(String template, String status, int pos, long avgTime) {
+        return formatTabListMessage(template, status, pos, avgTime, true);
     }
 
-    public void setNowQueued(String nowQueued) {
-        this.nowQueued = nowQueued;
+    private String baseFormat(String template, String server, String status, int pos, long timeValue, boolean calculateEta) {
+        if (template == null) return "";
+
+        long seconds = calculateEta ? calculateSeconds(pos, timeValue) : timeValue;
+        String etaStr = (timeValue > 0) ? formatTime(seconds) : "...";
+        String posStr = (pos > 0) ? String.valueOf(pos) : "...";
+
+        String result = template.replace("{alt-pos}", getTabAltPositionInQueue(pos)).replace("{pos}", posStr).replace("{eta}", etaStr);
+        if (server != null) result = result.replace("{server}", server);
+        if (status != null) result = result.replace("{status}", status);
+
+        return result;
     }
 
-    public String getNowQueued(String serverName) {
-        return format(this.nowQueued, serverName, -1);
+    private long calculateSeconds(int pos, long avgTimeBetweenJoins) {
+        return (avgTimeBetweenJoins <= 0) ? -1L : (pos * avgTimeBetweenJoins) / 1000;
     }
 
-    public void setNowOffline(String nowOffline) {
-        this.nowOffline = nowOffline;
-    }
+    private String formatTime(long totalSeconds) {
+        if (totalSeconds < 0) return "...";
 
-    public String getNowOffline(String serverNam) {
-        return format(this.nowOffline, serverNam, -1);
-    }
+        long months = totalSeconds / 2592000; // 30 days
+        long days = (totalSeconds % 2592000) / 86400;
+        long hours = (totalSeconds % 86400) / 3600;
+        long minutes = (totalSeconds % 3600) / 60;
+        long seconds = totalSeconds % 60;
 
-    public void setPositionInQueue(String positionInQueue) {
-        this.positionInQueue = positionInQueue;
-    }
-
-    public String getPositionInQueue(String serverNam, int position) {
-        return format(this.positionInQueue, serverNam, position);
-    }
-
-    public void setConnecting(String connecting) {
-        this.connecting = connecting;
-    }
-
-    public String getConnecting(String serverNam) {
-        return format(this.connecting, serverNam, -1);
-    }
-
-    public void setPendingConnection(String pendingConnection) {
-        this.pendingConnection = pendingConnection;
-    }
-
-    public String getPendingConnection(String serverNam) {
-        return format(this.pendingConnection, serverNam, -1);
-    }
-
-    public void setWaitingConnection(String waitingConnection) {
-        this.waitingConnection = waitingConnection;
-    }
-
-    public String getWaitingConnection(String serverNam) {
-        return format(this.waitingConnection, serverNam, -1);
-    }
-
-    private String format(String template, String serverName, int pos) {
-        return format(template, serverName, pos, -1, false);
-    }
-
-    public String formatTabListMessage(String template, String statusReplacement, int pos) {
-        return formatTabListMessage(template, statusReplacement, pos, -1, false);
-    }
-
-    private String format(String template, String serverName, int pos, long estimatedTime, boolean doMagic) {
-        long seconds = doMagic ? magic(pos, estimatedTime) : estimatedTime;
-        return template.replace("{server}", serverName).replace("{pos}", pos > 0 ? pos + "" : "...")
-                .replace("{eta}", estimatedTime > 0 ? formatTime(seconds) : "...");
-    }
-
-    public String formatTabListMessage(String template, String statusReplacement, int pos, long estimatedTime, boolean doMagic) {
-        long seconds = doMagic ? magic(pos, estimatedTime) : estimatedTime;
-        return template.replace("{status}", statusReplacement).replace("{pos}", pos > 0 ? pos + "" : "...")
-                .replace("{eta}", estimatedTime > 0 ? formatTime(seconds) : "...");
-    }
-
-    private String format(String template, String serverName, int pos, long estimatedTime) {
-        return format(template, serverName, pos, estimatedTime, true);
-    }
-
-    public String formatTabListMessage(String template, String statusReplacement, int pos, long estimatedTime) {
-        return formatTabListMessage(template, statusReplacement, pos, estimatedTime, true);
-    }
-
-    private static long magic(int pos, long avgTimeBetweenJoins) {
-        long seconds;
-        if (avgTimeBetweenJoins == -1L) {
-            seconds = -1L;
-        } else {
-            seconds = (pos * avgTimeBetweenJoins) / 1000;
-        }
-        return seconds;
-    }
-
-    private String formatTime(long seconds) {
-        int minutes = 0;
-        int hours = 0;
-        int days = 0;
-        int months = 0;
-        while (seconds >= 60) {
-            minutes++;
-            seconds = seconds - 60;
-        }
-        while (minutes >= 60) {
-            hours++;
-            minutes = minutes - 60;
-        }
-        while (hours >= 24) {
-            days++;
-            hours = hours - 24;
-        }
-        while (days >= 30) {
-            months++;
-            days = days - 30;
-        }
         StringBuilder sb = new StringBuilder();
-        if (months > 0) {
-            sb.append(months).append("mo ");
-        }
-        if (days > 0) {
-            sb.append(days).append("d ");
-        }
-        if (hours > 0) {
-            sb.append(hours).append("h ");
-        }
-        if (minutes > 0) {
-            sb.append(minutes).append("m ");
-        }
-        if (seconds > -1) {
-            sb.append(seconds).append("s ");
-        }
+        if (months > 0) sb.append(months).append("mo ");
+        if (days > 0)   sb.append(days).append("d ");
+        if (hours > 0)  sb.append(hours).append("h ");
+        if (minutes > 0) sb.append(minutes).append("m ");
+        sb.append(seconds).append("s");
+
         return sb.toString().trim();
     }
 }
