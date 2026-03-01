@@ -38,29 +38,7 @@ public class SlotPool {
     }
 
     private void sendPendingUpdate(MatsuQueuePlugin plugin, Player player, QueuePlayer qp) {
-        MatsuMessages msgs = plugin.getConfigurator().getMatsuMessages();
-        MatsuDestinationServer dest = qp.getDestinationMatsuServer(plugin);
-        ServerQueue queue = plugin.getQueue(qp, false);
-        boolean isOnline = dest.isOnline();
-        long avgTime = qp.getCachedPunishmentSeconds();
-        // chat notif
-        player.sendMessage(MatsuQueuePlugin.msg(msgs.getPendingConnection(dest.getDisplayName())));
-        // tab
-        String status = isOnline ? msgs.getWaitingConnection(dest.getDisplayName()) : msgs.getNowOffline(dest.getDisplayName());
-        String header = msgs.formatTabListMessage(queue.getTabHeaderTemplate(), status, -1, avgTime, false);
-        String footer = msgs.formatTabListMessage(queue.getTabFooterTemplate(), status, -1, avgTime, false);
-        player.sendPlayerListHeaderAndFooter(MatsuQueuePlugin.msg(header), MatsuQueuePlugin.msg(footer));
-        // action bar eta
-        qp.cancelAnyTask();
-        final String actionMsg = msgs.getEstimatedTime(dest.getDisplayName(), -1, avgTime, false);
-        plugin.getProxyServer().getScheduler().buildTask(plugin, (task) -> {
-            qp.setActionBarTask(task);
-            if (!player.isActive()) {
-                task.cancel();
-                return;
-            }
-            player.sendActionBar(MatsuQueuePlugin.msg(actionMsg));
-        }).repeat(1L, TimeUnit.SECONDS).schedule();
+        plugin.getNotificationManager().sendQueueUI(player, qp, null, false);
     }
 
     public void notifyAnyPending(MatsuQueuePlugin plugin) {

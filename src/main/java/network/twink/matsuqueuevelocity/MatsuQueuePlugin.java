@@ -11,7 +11,7 @@ import com.velocitypowered.api.plugin.annotation.DataDirectory;
 import com.velocitypowered.api.proxy.Player;
 import com.velocitypowered.api.proxy.ProxyServer;
 import com.velocitypowered.api.proxy.server.RegisteredServer;
-import command.QueueCommand;
+import network.twink.matsuqueuevelocity.command.QueueCommand;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer;
 import network.twink.matsuqueuevelocity.queue.QueuePlayer;
@@ -20,6 +20,7 @@ import network.twink.matsuqueuevelocity.queue.State;
 import network.twink.matsuqueuevelocity.server.MatsuDestinationServer;
 import network.twink.matsuqueuevelocity.server.MatsuServer;
 import network.twink.matsuqueuevelocity.slot.SlotPool;
+import network.twink.matsuqueuevelocity.util.MatsuQueueNotificationManager;
 import org.slf4j.Logger;
 
 import java.io.IOException;
@@ -37,6 +38,7 @@ public class MatsuQueuePlugin {
     private final ProxyServer server;
     private final Path dataDirectory;
     private MatsuConfigurator configurator;
+    private MatsuQueueNotificationManager notificationManager;
 
     private String rootPermission;
     private MatsuServer queueServer;
@@ -59,6 +61,7 @@ public class MatsuQueuePlugin {
         } catch (IOException e) {
             logger.error("Failed to load MatsuConfigurator!", e);
         }
+        this.notificationManager = new MatsuQueueNotificationManager(this);
 
         server.getEventManager().register(this, new MatsuEventHandler(this));
 
@@ -102,6 +105,7 @@ public class MatsuQueuePlugin {
     }
 
     private void runNotificationTick() {
+        notificationManager.toggle();
         destinationServers.values().forEach(dest -> {
             dest.getSlotMap().values().forEach(pool -> pool.notifyAnyPending(this));
             dest.getQueueMap().values().forEach(queue -> queue.notifyAllQueueMembers(this));
@@ -262,5 +266,9 @@ public class MatsuQueuePlugin {
 
     public RegisteredServer getVelocityServer(String key) {
         return getDestServer(key).getServer(this);
+    }
+
+    public MatsuQueueNotificationManager getNotificationManager() {
+        return notificationManager;
     }
 }

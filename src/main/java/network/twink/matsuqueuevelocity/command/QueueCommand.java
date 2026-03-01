@@ -1,4 +1,4 @@
-package command;
+package network.twink.matsuqueuevelocity.command;
 
 import com.velocitypowered.api.command.SimpleCommand;
 import com.velocitypowered.api.proxy.Player;
@@ -103,6 +103,7 @@ public class QueueCommand implements SimpleCommand {
         qp.setQueueState(State.QUEUED);
         if (!sendToQueueServer) {
             player.sendMessage(MatsuQueuePlugin.msg(queuedMessage));
+            plugin.getNotificationManager().sendQueueUI(player, qp, null, true);
             return;
         }
         player.createConnectionRequest(plugin.getQueueMatsuServer().getServer(plugin)).connect().thenAccept(result -> {
@@ -132,6 +133,7 @@ public class QueueCommand implements SimpleCommand {
         }
         if (!sendToQueueServer) {
             player.sendMessage(MatsuQueuePlugin.msg(queuedMessage));
+            plugin.getNotificationManager().sendQueueUI(player, qp, null, true);
             return;
         }
         player.createConnectionRequest(plugin.getQueueMatsuServer().getServer(plugin)).connect().thenAccept(result -> {

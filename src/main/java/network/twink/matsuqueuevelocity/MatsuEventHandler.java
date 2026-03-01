@@ -7,15 +7,10 @@ import com.velocitypowered.api.event.player.PlayerChooseInitialServerEvent;
 import com.velocitypowered.api.event.player.ServerPostConnectEvent;
 import com.velocitypowered.api.proxy.Player;
 import com.velocitypowered.api.proxy.server.RegisteredServer;
-import net.kyori.adventure.text.Component;
-import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer;
 import network.twink.matsuqueuevelocity.queue.QueuePlayer;
 import network.twink.matsuqueuevelocity.queue.State;
 import network.twink.matsuqueuevelocity.server.MatsuDestinationServer;
 import network.twink.matsuqueuevelocity.util.MatsuMessages;
-
-import java.util.UUID;
-import java.util.concurrent.TimeUnit;
 
 public class MatsuEventHandler {
 
@@ -106,44 +101,9 @@ public class MatsuEventHandler {
 
             State state = qp.getQueueState();
             if (state == State.QUEUED || state == State.PENDING) {
-                updateQueueUI(e.getPlayer(), qp, state);
+                plugin.getNotificationManager().sendQueueUI(e.getPlayer(), qp, null, true);
             }
         });
-    }
-
-    private void updateQueueUI(Player player, QueuePlayer qp, State state) {
-        MatsuMessages msgs = plugin.getConfigurator().getMatsuMessages();
-        MatsuDestinationServer dest = qp.getDestinationMatsuServer(plugin);
-        boolean isOnline = dest.isOnline();
-
-        // set messages depending on State
-        String status;
-        String actionMsg;
-        if (state == State.QUEUED) {
-            status = isOnline ? msgs.getNowQueued(dest.getDisplayName()) : msgs.getNowOffline(dest.getDisplayName());
-            actionMsg = msgs.getEstimatedTime(dest.getDisplayName(), qp.getCachedPositionInQueue(), plugin.getQueue(qp, false).getAverageTimeBetweenJoins());
-        } else { // PENDING
-            status = isOnline ? msgs.getWaitingConnection(dest.getDisplayName()) : msgs.getNowOffline(dest.getDisplayName());
-            actionMsg = msgs.getEstimatedTime(dest.getDisplayName(), qp.getCachedPositionInQueue(), qp.getCachedPunishmentSeconds(), false);
-        }
-
-        player.sendMessage(MatsuQueuePlugin.msg(status));
-        long eta = (state == State.QUEUED) ? plugin.getQueue(qp, false).getAverageTimeBetweenJoins() : qp.getCachedPunishmentSeconds();
-        String header = msgs.formatTabListMessage(plugin.getTabHeaderTemplateForPlayer(qp), status, qp.getCachedPositionInQueue(), eta, state == State.QUEUED);
-        String footer = msgs.formatTabListMessage(plugin.getTabFooterTemplateForPlayer(qp), status, qp.getCachedPositionInQueue(), eta, state == State.QUEUED);
-
-        player.sendPlayerListHeaderAndFooter(MatsuQueuePlugin.msg(header), MatsuQueuePlugin.msg(footer));
-
-        // update action bar eta
-        qp.cancelAnyTask();
-        plugin.getProxyServer().getScheduler().buildTask(plugin, (task) -> {
-            if (!player.isActive()) {
-                task.cancel();
-                return;
-            }
-            qp.setActionBarTask(task);
-            player.sendActionBar(MatsuQueuePlugin.msg(actionMsg));
-        }).repeat(1L, TimeUnit.SECONDS).schedule();
     }
 
     @Subscribe

@@ -11,7 +11,6 @@ import network.twink.matsuqueuevelocity.util.MatsuMessages;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.LinkedBlockingDeque;
-import java.util.concurrent.TimeUnit;
 
 public class ServerQueue {
 
@@ -74,30 +73,8 @@ public class ServerQueue {
     }
 
     private void sendQueueUpdate(MatsuQueuePlugin plugin, Player player, QueuePlayer qp, int pos) {
-        MatsuMessages msgs = plugin.getConfigurator().getMatsuMessages();
-        MatsuDestinationServer dest = qp.getDestinationMatsuServer(plugin);
-        boolean isOnline = dest.isOnline();
-        long avgTime = getAverageTimeBetweenJoins();
-        // cached pos
         qp.setLastKnownPosInQueue(pos);
-        // chat notif
-        player.sendMessage(msg(msgs.getPositionInQueue(dest.getDisplayName(), pos)));
-        // tab
-        String status = isOnline ? msgs.getNowQueued(dest.getDisplayName()) : msgs.getNowOffline(dest.getDisplayName());
-        String header = msgs.formatTabListMessage(tabHeader, status, pos, avgTime);
-        String footer = msgs.formatTabListMessage(tabFooter, status, pos, avgTime);
-        player.sendPlayerListHeaderAndFooter(msg(header), msg(footer));
-        // action bar eta
-        qp.cancelAnyTask();
-        final String actionMsg = msgs.getEstimatedTime(dest.getDisplayName(), pos, avgTime);
-        plugin.getProxyServer().getScheduler().buildTask(plugin, (task) -> {
-            qp.setActionBarTask(task);
-            if (!player.isActive()) {
-                task.cancel();
-                return;
-            }
-            player.sendActionBar(msg(actionMsg));
-        }).repeat(1L, TimeUnit.SECONDS).schedule();
+        plugin.getNotificationManager().sendQueueUI(player, qp, this, false);
     }
 
     // connection handling
