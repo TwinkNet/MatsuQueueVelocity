@@ -8,8 +8,8 @@ import network.twink.matsuqueuevelocity.queue.ServerQueue;
 import network.twink.matsuqueuevelocity.queue.State;
 import network.twink.matsuqueuevelocity.server.MatsuDestinationServer;
 import network.twink.matsuqueuevelocity.task.ActionBarTask;
+import org.jetbrains.annotations.Nullable;
 
-import javax.annotation.Nullable;
 import java.util.concurrent.TimeUnit;
 
 public class MatsuQueueNotificationManager {
