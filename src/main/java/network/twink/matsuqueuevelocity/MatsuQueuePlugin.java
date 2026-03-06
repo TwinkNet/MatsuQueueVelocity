@@ -11,6 +11,7 @@ import com.velocitypowered.api.plugin.annotation.DataDirectory;
 import com.velocitypowered.api.proxy.Player;
 import com.velocitypowered.api.proxy.ProxyServer;
 import com.velocitypowered.api.proxy.server.RegisteredServer;
+import network.twink.matsuqueuevelocity.command.DebugCommand;
 import network.twink.matsuqueuevelocity.command.QueueCommand;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer;
@@ -40,7 +41,7 @@ public class MatsuQueuePlugin {
     private final Path dataDirectory;
     private MatsuConfigurator configurator;
     private MatsuQueueNotificationManager notificationManager;
-
+    private boolean enableDebugCommand;
     private String rootPermission;
     private MatsuServer queueServer;
     private final ConcurrentHashMap<String, MatsuDestinationServer> destinationServers = new ConcurrentHashMap<>();
@@ -82,9 +83,18 @@ public class MatsuQueuePlugin {
                 .aliases("q")
                 .plugin(this)
                 .build();
-
         SimpleCommand command = new QueueCommand(this);
         commandManager.register(meta, command);
+        if (enableDebugCommand) {
+            CommandMeta debugMeta = commandManager.metaBuilder("debugqueue")
+                    .aliases("dq")
+                    .plugin(this)
+                    .build();
+            SimpleCommand debugCmd = new DebugCommand(this);
+            commandManager.register(debugMeta, debugCmd);
+            logger.warn("Enabled debug command (/dq or /debugqueue)");
+            logger.warn("Recommended to disable this in a production enviro.");
+        }
         logger.info("MatsuQueuePlugin has been initialized");
     }
 
@@ -272,6 +282,14 @@ public class MatsuQueuePlugin {
 
     public MatsuQueueNotificationManager getNotificationManager() {
         return notificationManager;
+    }
+
+    public void setEnableDebugCommand(boolean enableDebugCommand) {
+        this.enableDebugCommand = enableDebugCommand;
+    }
+
+    public boolean isEnableDebugCommand() {
+        return enableDebugCommand;
     }
 
     public Random getRandom() {
