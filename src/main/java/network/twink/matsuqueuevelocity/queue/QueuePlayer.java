@@ -167,7 +167,7 @@ public class QueuePlayer {
 
     public void startNotificationTask(Player player, MatsuQueuePlugin plugin, boolean showEtaFirst) {
         this.cancelAnyTask();
-        this.actionBarToggle = showEtaFirst;
+        this.actionBarToggle = !showEtaFirst; // we need to invert it for the result to actually make sense, if it's true, it shows the status first.
         if (!player.getUniqueId().equals(uuid)) {
             throw new IllegalArgumentException("Argument Player must have same UUID as QueuePlayer.this.uuid");
         }
