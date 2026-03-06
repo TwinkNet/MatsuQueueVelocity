@@ -72,6 +72,7 @@ destination-servers:
           - "operator"
 
 root-permission: "matsu.queue"
+enable-debug-command: false
 
 status:
   now-queued: "§6{server} is full"

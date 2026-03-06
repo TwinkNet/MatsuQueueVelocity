@@ -54,6 +54,8 @@ public class MatsuConfigurator {
 
         plugin.setRootPermission(parser.getString("root-permission"));
         plugin.setQueueServer(new MatsuServer(parser.getString("queue-server.velocity-name"), parser.getString("queue-server.display-name")));
+        plugin.setEnableDebugCommand(parser.getBoolean("enable-debug-command", false));
+
         ConfigSection destinationServers = parser.getSection("destination-servers");
         for (String destVelName : destinationServers.getKeys(false)) {
             var server = plugin.getProxyServer().getServer(destVelName);

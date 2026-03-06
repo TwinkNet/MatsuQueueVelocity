@@ -11,6 +11,7 @@ import com.velocitypowered.api.plugin.annotation.DataDirectory;
 import com.velocitypowered.api.proxy.Player;
 import com.velocitypowered.api.proxy.ProxyServer;
 import com.velocitypowered.api.proxy.server.RegisteredServer;
+import network.twink.matsuqueuevelocity.command.DebugCommand;
 import network.twink.matsuqueuevelocity.command.QueueCommand;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer;
@@ -26,6 +27,7 @@ import org.slf4j.Logger;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.util.Comparator;
+import java.util.Random;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.LinkedBlockingDeque;
@@ -39,11 +41,13 @@ public class MatsuQueuePlugin {
     private final Path dataDirectory;
     private MatsuConfigurator configurator;
     private MatsuQueueNotificationManager notificationManager;
-
+    private boolean enableDebugCommand;
     private String rootPermission;
     private MatsuServer queueServer;
     private final ConcurrentHashMap<String, MatsuDestinationServer> destinationServers = new ConcurrentHashMap<>();
     public final LinkedBlockingDeque<QueuePlayer> purgatory = new LinkedBlockingDeque<>();
+
+    private final Random rand = new Random(); // needed to create ids for notificationtasks.
 
     @Inject
     public MatsuQueuePlugin(ProxyServer server, Logger logger, @DataDirectory Path dataDirectory) {
@@ -70,18 +74,27 @@ public class MatsuQueuePlugin {
                 .repeat(500L, TimeUnit.MILLISECONDS)
                 .schedule();
 
-        // Notification Task (10s)
-        server.getScheduler().buildTask(this, this::runNotificationTick)
-                .repeat(10L, TimeUnit.SECONDS)
+        // Update QueuePos Tick (1s)
+        server.getScheduler().buildTask(this, this::runQueueUpdateTick)
+                .repeat(1L, TimeUnit.SECONDS)
                 .schedule();
         CommandManager commandManager = getProxyServer().getCommandManager();
         CommandMeta meta = commandManager.metaBuilder("queue")
                 .aliases("q")
                 .plugin(this)
                 .build();
-
         SimpleCommand command = new QueueCommand(this);
         commandManager.register(meta, command);
+        if (enableDebugCommand) {
+            CommandMeta debugMeta = commandManager.metaBuilder("debugqueue")
+                    .aliases("dq")
+                    .plugin(this)
+                    .build();
+            SimpleCommand debugCmd = new DebugCommand(this);
+            commandManager.register(debugMeta, debugCmd);
+            logger.warn("Enabled debug command (/dq or /debugqueue)");
+            logger.warn("Recommended to disable this in a production enviro.");
+        }
         logger.info("MatsuQueuePlugin has been initialized");
     }
 
@@ -90,6 +103,9 @@ public class MatsuQueuePlugin {
         long maxPunishmentMs = getMaxPunishmentSeconds() * 1000L;
         purgatory.removeIf(qp -> qp.getQueueState() == State.LEFT &&
                 (System.currentTimeMillis() - qp.getStateLastUpdated() > maxPunishmentMs));
+
+        updateDestinationServersOnlineStatus();
+        queueServer.updateOnline(this);
 
         // connect pending players who have satisfied their queue's timeout.
         destinationServers.values().forEach(dest -> {
@@ -100,15 +116,11 @@ public class MatsuQueuePlugin {
                     .forEach(queue -> queue.connectFirstIfPossible(this));
         });
         // check if the destination server is still online
-        updateDestinationServersOnlineStatus();
-        queueServer.updateOnline(this);
     }
 
-    private void runNotificationTick() {
-        notificationManager.toggle();
+    private void runQueueUpdateTick() {
         destinationServers.values().forEach(dest -> {
-            dest.getSlotMap().values().forEach(pool -> pool.notifyAnyPending(this));
-            dest.getQueueMap().values().forEach(queue -> queue.notifyAllQueueMembers(this));
+            dest.getQueueMap().values().forEach(queue -> queue.updateAllQueueMembers(this));
         });
     }
 
@@ -270,5 +282,17 @@ public class MatsuQueuePlugin {
 
     public MatsuQueueNotificationManager getNotificationManager() {
         return notificationManager;
+    }
+
+    public void setEnableDebugCommand(boolean enableDebugCommand) {
+        this.enableDebugCommand = enableDebugCommand;
+    }
+
+    public boolean isEnableDebugCommand() {
+        return enableDebugCommand;
+    }
+
+    public Random getRandom() {
+        return rand;
     }
 }

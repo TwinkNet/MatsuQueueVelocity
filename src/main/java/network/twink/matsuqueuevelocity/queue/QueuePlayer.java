@@ -5,9 +5,11 @@ import com.velocitypowered.api.scheduler.ScheduledTask;
 import network.twink.matsuqueuevelocity.MatsuQueuePlugin;
 import network.twink.matsuqueuevelocity.server.MatsuDestinationServer;
 import network.twink.matsuqueuevelocity.server.MatsuServer;
+import network.twink.matsuqueuevelocity.task.NotificationTask;
 
 import java.util.Optional;
 import java.util.UUID;
+import java.util.concurrent.TimeUnit;
 
 public class QueuePlayer {
 
@@ -16,9 +18,13 @@ public class QueuePlayer {
     private long stateLastUpdated;
     private int lastKnownPosInQueue = -1;
     private int cachedPunishmentSeconds = -1;
+    private boolean actionBarToggle = false;
     private String cachedQueueKey;
     private String destinationServerKey;
     private ScheduledTask actionBarTask = null;
+    private ScheduledTask notificationTask = null;
+    private long notificationTaskId;
+    private long actionBarTaskId;
 
     public QueuePlayer(MatsuQueuePlugin plugin, Player player, String destinationServerKey, String cachedQueueKey) {
         this.uuid = player.getUniqueId();
@@ -28,6 +34,7 @@ public class QueuePlayer {
         this.cachedPunishmentSeconds = plugin.getQueue(this, false).getPunishmentSeconds();
         this.destinationServerKey = destinationServerKey;
     }
+
     public QueuePlayer(MatsuQueuePlugin plugin, Player player, MatsuServer destinationServer, String cachedQueueKey) {
         this(plugin, player, destinationServer.getVelocityName(), cachedQueueKey);
     }
@@ -41,6 +48,7 @@ public class QueuePlayer {
         this.cachedQueueKey = plugin.getQueue(this, false).getName();
         this.cachedPunishmentSeconds = plugin.getQueue(this, false).getPunishmentSeconds();
     }
+
     public QueuePlayer(MatsuQueuePlugin plugin, Player player, MatsuServer destinationServer) {
         this(plugin, player, destinationServer.getVelocityName());
     }
@@ -90,8 +98,21 @@ public class QueuePlayer {
     }
 
     public void cancelAnyTask() {
+        cancelNotificationTask();
+        cancelActionBarTask();
+    }
+
+    public void cancelActionBarTask() {
+        this.actionBarTaskId = -1L;
         if (actionBarTask != null) {
             actionBarTask.cancel();
+        }
+    }
+
+    public void cancelNotificationTask() {
+        this.notificationTaskId = -1L;
+        if (notificationTask != null) {
+            notificationTask.cancel();
         }
     }
 
@@ -112,7 +133,47 @@ public class QueuePlayer {
         return opt.orElse(null);
     }
 
+    public boolean isActionBarMessageToggled() {
+        return actionBarToggle;
+    }
+
     public void setActionBarTask(ScheduledTask actionBarTask) {
         this.actionBarTask = actionBarTask;
+    }
+
+    public void setNotificationTask(ScheduledTask notificationTask) {
+        this.notificationTask = notificationTask;
+    }
+
+    public long getNotificationTaskId() {
+        return notificationTaskId;
+    }
+
+    public void setActionBarTaskId(long actionBarTaskId) {
+        this.actionBarTaskId = actionBarTaskId;
+    }
+
+    public long getActionBarTaskId() {
+        return actionBarTaskId;
+    }
+
+    public void setNotificationTaskId(long notificationTaskId) {
+        this.notificationTaskId = notificationTaskId;
+    }
+
+    public void toggleActionBar() {
+        this.actionBarToggle = !this.actionBarToggle;
+    }
+
+    public void startNotificationTask(Player player, MatsuQueuePlugin plugin, boolean showEtaFirst) {
+        this.cancelAnyTask();
+        this.actionBarToggle = showEtaFirst;
+        if (!player.getUniqueId().equals(uuid)) {
+            throw new IllegalArgumentException("Argument Player must have same UUID as QueuePlayer.this.uuid");
+        }
+        final ServerQueue queue = plugin.getQueue(this, false);
+        NotificationTask newNotificationTask = new NotificationTask(plugin, player, this, queue);
+        this.setNotificationTaskId(newNotificationTask.getId());
+        plugin.getProxyServer().getScheduler().buildTask(plugin, newNotificationTask).repeat(10L, TimeUnit.SECONDS).schedule();
     }
 }

@@ -59,6 +59,7 @@ public class MatsuEventHandler {
             return;
         }
         qp.setQueueState(State.QUEUED);
+        qp.startNotificationTask(event.getPlayer(), plugin, true);
         event.setInitialServer(plugin.getQueueMatsuServer().getServer(plugin));
     }
 
@@ -68,6 +69,7 @@ public class MatsuEventHandler {
             return;
         }
         qp.setQueueState(State.PENDING);
+        qp.startNotificationTask(event.getPlayer(), plugin, true);
         event.setInitialServer(plugin.getQueueMatsuServer().getServer(plugin));
     }
 
