@@ -32,7 +32,7 @@ public class QueueCommand implements SimpleCommand {
                 server.getQueueMap().forEach((key, value) -> {
                     builder.append("\n\2476").append(key).append(" queue: \247l").append(value.getQueueSize());
                 });
-                invocation.source().sendMessage(MatsuQueuePlugin.msg(builder.toString() + "\n"));
+                invocation.source().sendMessage(MatsuQueuePlugin.msg(builder.toString()));
             }
         } else if (invocation.arguments().length == 1) {
             if (invocation.source() instanceof Player player) {
@@ -101,6 +101,7 @@ public class QueueCommand implements SimpleCommand {
             player.disconnect(MatsuQueuePlugin.msg(offlineMsg));
         }
         qp.setQueueState(State.QUEUED);
+        qp.startNotificationTask(player, plugin, false);
         if (!sendToQueueServer) {
             player.sendMessage(MatsuQueuePlugin.msg(queuedMessage));
             plugin.getNotificationManager().sendQueueUI(player, qp, null, true);
@@ -131,6 +132,7 @@ public class QueueCommand implements SimpleCommand {
             player.disconnect(MatsuQueuePlugin.msg(offlineMsg));
             return;
         }
+        qp.startNotificationTask(player, plugin, false);
         if (!sendToQueueServer) {
             player.sendMessage(MatsuQueuePlugin.msg(queuedMessage));
             plugin.getNotificationManager().sendQueueUI(player, qp, null, true);

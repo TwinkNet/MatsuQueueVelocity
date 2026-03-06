@@ -1,11 +1,13 @@
 package network.twink.matsuqueuevelocity.util;
 
 import com.velocitypowered.api.proxy.Player;
+import com.velocitypowered.api.scheduler.ScheduledTask;
 import network.twink.matsuqueuevelocity.MatsuQueuePlugin;
 import network.twink.matsuqueuevelocity.queue.QueuePlayer;
 import network.twink.matsuqueuevelocity.queue.ServerQueue;
 import network.twink.matsuqueuevelocity.queue.State;
 import network.twink.matsuqueuevelocity.server.MatsuDestinationServer;
+import network.twink.matsuqueuevelocity.task.ActionBarTask;
 
 import javax.annotation.Nullable;
 import java.util.concurrent.TimeUnit;
@@ -13,7 +15,6 @@ import java.util.concurrent.TimeUnit;
 public class MatsuQueueNotificationManager {
 
     private final MatsuQueuePlugin plugin;
-    private boolean toggle;
 
     public MatsuQueueNotificationManager(MatsuQueuePlugin plugin) {
         this.plugin = plugin;
@@ -33,11 +34,11 @@ public class MatsuQueueNotificationManager {
         String chat;
         if (qp.getQueueState() == State.QUEUED) {
             status = isOnline ? msgs.getNowQueued(dest.getDisplayName()) : msgs.getNowOffline(dest.getDisplayName());
-            actionMsg = toggle ? status : msgs.getEstimatedTime(dest.getDisplayName(), qp.getCachedPositionInQueue(), queue.getAverageTimeBetweenJoins());
+            actionMsg = qp.isActionBarMessageToggled() ? status : msgs.getEstimatedTime(dest.getDisplayName(), qp.getCachedPositionInQueue(), queue.getAverageTimeBetweenJoins());
             chat = initial ? status : msgs.getPositionInQueue(dest.getDisplayName(), qp.getCachedPositionInQueue());
         } else { // PENDING
             status = isOnline ? msgs.getPendingConnection(dest.getDisplayName()) : msgs.getNowOffline(dest.getDisplayName());
-            actionMsg = toggle ? status : msgs.getEstimatedTime(dest.getDisplayName(), qp.getCachedPositionInQueue(), qp.getCachedPunishmentSeconds(), false);
+            actionMsg = qp.isActionBarMessageToggled() ? status : msgs.getEstimatedTime(dest.getDisplayName(), qp.getCachedPositionInQueue(), qp.getCachedPunishmentSeconds(), false);
             chat = initial ? msgs.getWaitingConnection(dest.getDisplayName()) : msgs.getPendingConnection(dest.getDisplayName());
         }
         player.sendMessage(MatsuQueuePlugin.msg(chat));
@@ -48,19 +49,19 @@ public class MatsuQueueNotificationManager {
         player.sendPlayerListHeaderAndFooter(MatsuQueuePlugin.msg(header), MatsuQueuePlugin.msg(footer));
 
         // update action bar eta
-        qp.cancelAnyTask();
-        plugin.getProxyServer().getScheduler().buildTask(plugin, (task) -> {
-            if (!player.isActive()) {
-                task.cancel();
-                return;
+        qp.cancelActionBarTask();
+        ActionBarTask newAbTask = new ActionBarTask(plugin, player, qp, queue) {
+            @Override
+            public void accept(ScheduledTask task) {
+                super.accept(task);
+                if (!this.cancelled()) {
+                    qp.setActionBarTask(task);
+                    player.sendActionBar(MatsuQueuePlugin.msg(actionMsg));
+                }
             }
-            qp.setActionBarTask(task);
-            player.sendActionBar(MatsuQueuePlugin.msg(actionMsg));
-        }).repeat(1L, TimeUnit.SECONDS).schedule();
-    }
-
-    public void toggle() {
-        toggle = !toggle;
+        };
+        qp.setActionBarTaskId(newAbTask.getId());
+        plugin.getProxyServer().getScheduler().buildTask(plugin, newAbTask).repeat(1L, TimeUnit.SECONDS).schedule();
     }
 
 }

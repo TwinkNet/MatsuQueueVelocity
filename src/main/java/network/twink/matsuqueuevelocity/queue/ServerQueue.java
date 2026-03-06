@@ -53,7 +53,7 @@ public class ServerQueue {
 
     // notifications
 
-    public void notifyAllQueueMembers(MatsuQueuePlugin plugin) {
+    public void updateAllQueueMembers(MatsuQueuePlugin plugin) {
         if (queue.isEmpty()) {
             this.lastJoinTime = -1L;
             return;
@@ -68,13 +68,13 @@ public class ServerQueue {
                 continue;
             }
 
-            sendQueueUpdate(plugin, playerOpt.get(), qp, count++);
+            updateQueuePos(qp, count++);
         }
     }
 
-    private void sendQueueUpdate(MatsuQueuePlugin plugin, Player player, QueuePlayer qp, int pos) {
+    private void updateQueuePos(QueuePlayer qp, int pos) {
         qp.setLastKnownPosInQueue(pos);
-        plugin.getNotificationManager().sendQueueUI(player, qp, this, false);
+        // plugin.getNotificationManager().sendQueueUI(player, qp, this, false); - Runs separately now.
     }
 
     // connection handling

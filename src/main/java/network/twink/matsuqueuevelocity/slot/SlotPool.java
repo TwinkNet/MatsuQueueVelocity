@@ -37,10 +37,12 @@ public class SlotPool {
         this.fill = new ConcurrentHashMap<>();
     }
 
+    @Deprecated
     private void sendPendingUpdate(MatsuQueuePlugin plugin, Player player, QueuePlayer qp) {
         plugin.getNotificationManager().sendQueueUI(player, qp, null, false);
     }
 
+    @Deprecated
     public void notifyAnyPending(MatsuQueuePlugin plugin) {
         fill.keySet().forEach(uuid -> {
             QueuePlayer queuePlayer = fill.get(uuid);
