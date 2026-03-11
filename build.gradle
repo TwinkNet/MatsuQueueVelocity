@@ -6,7 +6,7 @@ plugins {
 }
 
 group = 'network.twink'
-version = '2026.03.10-RC'
+version = '2026.03.11-RC'
 
 repositories {
     mavenCentral()
