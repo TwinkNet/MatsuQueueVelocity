@@ -28,8 +28,8 @@ public class DebugCommand implements SimpleCommand {
         int purgatorySize = plugin.purgatory.size();
         invocation.source().sendMessage(Component.text("MatsuQueueVelocity has " + scheduledTaskSize + " scheduled task(s)."));
         invocation.source().sendMessage(Component.text("MatsuQueueVelocity's Purgatory has " + purgatorySize + " members."));
-        long usedMegabytes = (Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory()) / 6;
-        long totalMegabytes = (Runtime.getRuntime().totalMemory()) / 6;
+        long usedMegabytes = (Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory()) / 1000000;
+        long totalMegabytes = (Runtime.getRuntime().totalMemory()) / 1000000;
         invocation.source().sendMessage(Component.text("Velocity memory usage: " + usedMegabytes + "MB used of " + totalMegabytes + " MB"));
     }
 
