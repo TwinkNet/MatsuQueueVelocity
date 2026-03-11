@@ -37,10 +37,35 @@ public class MatsuServer {
                 .thenAccept(sp -> {
                     if (sp.getDescriptionComponent() instanceof TextComponent) {
                         if (!isOnline) {
-                            plugin.getProxyServer().getScheduler().buildTask(plugin, () -> {
-                                isOnline = true;
-                            }).delay(1L, TimeUnit.SECONDS).schedule();
+                            plugin.getProxyServer().getScheduler()
+                                    .buildTask(plugin,
+                                            () ->
+                                                    /*
+                                                    check if the server is STILL online
+                                                    if so, isOnline will be set immediately.
+                                                    this has to be this way because we can't
+                                                    let players join the server too quickly after it
+                                                    comes online (it usually fails because the server isn't ready
+                                                    or the world isn't initialised)
+
+                                                    this entire plugin is incredibly hacky sorry
+                                                    */
+                                                    this.updateOnlineNow(plugin)).delay(2L, TimeUnit.SECONDS)
+                                            .schedule();
                         }
+                    }
+                })
+                .exceptionally(ex -> {
+                    isOnline = false;
+                    return null;
+                });
+    }
+
+    private void updateOnlineNow(MatsuQueuePlugin plugin) {
+        getServer(plugin).ping()
+                .thenAccept(sp -> {
+                    if (sp.getDescriptionComponent() instanceof TextComponent) {
+                        isOnline = true;
                     }
                 })
                 .exceptionally(ex -> {

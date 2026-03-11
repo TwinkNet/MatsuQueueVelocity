@@ -60,11 +60,11 @@ public class MatsuQueuePlugin {
     public void onProxyInitialization(ProxyInitializeEvent event) {
         try {
             configurator = new MatsuConfigurator(this);
-            this.updateDestinationServersOnlineStatus();
-            this.queueServer.updateOnline(this);
         } catch (IOException e) {
             logger.error("Failed to load MatsuConfigurator!", e);
         }
+        this.updateDestinationServersOnlineStatus();
+        this.queueServer.updateOnline(this);
         this.notificationManager = new MatsuQueueNotificationManager(this);
 
         server.getEventManager().register(this, new MatsuEventHandler(this));
@@ -77,6 +77,10 @@ public class MatsuQueuePlugin {
         // Update QueuePos Tick (1s)
         server.getScheduler().buildTask(this, this::runQueueUpdateTick)
                 .repeat(1L, TimeUnit.SECONDS)
+                .schedule();
+        // Update Server Online (10s)
+        server.getScheduler().buildTask(this, this::runCheckServerOnlineTick)
+                .repeat(10L, TimeUnit.SECONDS)
                 .schedule();
         CommandManager commandManager = getProxyServer().getCommandManager();
         CommandMeta meta = commandManager.metaBuilder("queue")
@@ -99,13 +103,11 @@ public class MatsuQueuePlugin {
     }
 
     private void runQueueTick() {
+        queueServer.updateOnline(this); // update queue server online status more often.
         // purge offline players who aren't coming back
         long maxPunishmentMs = getMaxPunishmentSeconds() * 1000L;
         purgatory.removeIf(qp -> qp.getQueueState() == State.LEFT &&
                 (System.currentTimeMillis() - qp.getStateLastUpdated() > maxPunishmentMs));
-
-        updateDestinationServersOnlineStatus();
-        queueServer.updateOnline(this);
 
         // connect pending players who have satisfied their queue's timeout.
         destinationServers.values().forEach(dest -> {
@@ -122,6 +124,10 @@ public class MatsuQueuePlugin {
         destinationServers.values().forEach(dest -> {
             dest.getQueueMap().values().forEach(queue -> queue.updateAllQueueMembers(this));
         });
+    }
+
+    private void runCheckServerOnlineTick() {
+        updateDestinationServersOnlineStatus();
     }
 
     // --- Player Lookup Logic ---
